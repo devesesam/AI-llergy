@@ -38,6 +38,12 @@ Before writing a script, check `execution/` per your directive. Only create new 
 **3. Update directives as you learn**
 Directives are living documents. When you discover API constraints, better approaches, common errors, or timing expectations—update the directive. But don't create or overwrite directives without asking unless explicitly told to. Directives are your instruction set and must be preserved (and improved upon over time, not extemporaneously used and then discarded).
 
+**4. Preserving Legacy Functionality (Progressive Enhancement)**
+   - **Assume Criticality**: When implementing new features in an existing codebase, assume that existing code is critical unless proven otherwise.
+   - **CSS/Styles**: Never overwrite global stylesheets (`globals.css`) completely. Always **append** new styles or use specific imports to avoid breaking other pages.
+   - **Refactoring**: Before deleting code, verify its usage across the *entire* project, not just the file you are working on.
+   - **Isolation**: If a new feature requires a radically different style, isolate it (e.g., using CSS modules, scoped classes, or a separate layout file) rather than changing global defaults.
+
 ## Self-annealing loop
 
 Errors are learning opportunities. When something breaks:

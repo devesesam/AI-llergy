@@ -32,14 +32,15 @@
     *   `src/app/api/interpret/route.ts`: AI interpretation endpoint for autocomplete (v2.4)
     *   `src/components/`: UI components
         *   `AllergenGrid.tsx`: Allergen selection grid with sections
-        *   `AllergenButton.tsx`: Individual allergen toggle with type badge
+        *   `AllergenButton.tsx`: Individual allergen toggle with type badge and pending state (v3.0)
         *   `AllergenGroup.tsx`: Collapsible allergen group dropdown (v2.3)
-        *   `AllergenTypeModal.tsx`: Allergy vs preference selection popup (v2.3)
+        *   `AllergenTypeModal.tsx`: **DEPRECATED** - Replaced by SeverityModal in v3.0
+        *   `SeverityModal.tsx`: Batch severity assignment modal with 3-level slider (v3.0)
         *   `AutocompleteInput.tsx`: Tag-based allergen input with typeahead (v2.4, v2.6)
         *   `AllergenTag.tsx`: Removable allergen tag chip (v2.4)
         *   `CustomTagPill.tsx`: Removable custom restriction tag chip (v2.6)
         *   `MenuResults.tsx`: Results container with accordions
-        *   `SelectionSummary.tsx`: User selections display at top of results (v2.3, v2.6)
+        *   `SelectionSummary.tsx`: User selections display grouped by severity (v2.3, v2.6, v3.0)
         *   `AccordionSection.tsx`: Collapsible section component
         *   `MenuItem.tsx`: Individual menu item card with expandable ingredients toggle (v2.5)
         *   `DisclaimerModal.tsx`, `LoadingSpinner.tsx`: Utility components
@@ -75,6 +76,315 @@
     4.  Check browser console for errors.
 
 ## 4. Change Log & Issues
+
+### v4.3 - UI Polish & Severity Slider (2026-02-19)
+
+**UI Improvements**: Several small but impactful UX enhancements to the severity modal, loading states, results display, and responsive layout.
+
+*   **Feature 1: Severity Slider (Replaces P/A/L Buttons)**
+    *   Replaced three separate buttons (P A L) with a draggable slider
+    *   Labels above slider: "Preference" | "Intolerance/Allergy" | "Life Threatening"
+    *   Track shows gradient (green → orange → red)
+    *   Thumb color changes based on current selection
+    *   Modal item layout changed to vertical (allergen name above, slider below) for better UX
+    *   **Files Modified**: `SeverityModal.tsx`, `globals.css`
+
+*   **Fix 1: Loading Spinner Not Animating**
+    *   The LoadingSpinner SVG component had no CSS animation defined
+    *   Added `@keyframes spin` and `.loading-spinner` animation styles
+    *   **Files Modified**: `globals.css`
+
+*   **Fix 2: Desktop Width Expansion**
+    *   App container was expanding to full width on desktop (768px+)
+    *   Changed `max-width: 100%` to `max-width: 500px` in desktop media query
+    *   App now remains centered and phone-sized on larger screens
+    *   **Files Modified**: `globals.css`
+
+*   **Enhancement 1: Allergen Group Arrow Position**
+    *   Moved expand/collapse chevron from after count badge to far right of row
+    *   Changed `margin-left: auto` from `.allergen-group__count` to `.allergen-group__chevron`
+    *   **Files Modified**: `globals.css`
+
+*   **Enhancement 2: Caution Section Title**
+    *   Changed "Can Be Modified" to "Modification Suggestions - Subject to kitchen approval"
+    *   More accurate and sets proper expectations
+    *   **Files Modified**: `MenuResults.tsx`
+
+*   **Browser Support**: Added Firefox (`-moz-range-thumb`) styles for severity slider
+
+*   **Related Directives**:
+    *   See `directives/css_styling_system.md` for updated slider styles
+    *   See `directives/allergen_management.md` §6 for severity slider docs
+    *   See `directives/known_issues_and_fixes.md` for BUG-004 and BUG-005
+
+*   **Status**: **Live** (Local). Build passes.
+
+---
+
+### v4.2 - CSS Visual Regression Fix (2026-02-19)
+
+**Critical Fix**: Restored broken styling across all pages. Multiple components were unstyled due to missing CSS class definitions and improper Tailwind v4 configuration.
+
+*   **Problem Solved**: Visual regression where pages appeared completely unstyled:
+    *   Allergen tiles showed as tiny chips instead of large square tiles
+    *   Allergen groups (Nuts, Seafood, etc.) had no styling
+    *   Results page showed raw text without cards/accordions
+    *   Dashboard sidebar and forms were invisible/unstyled
+    *   Login form inputs invisible on light background
+
+*   **Root Causes Identified**:
+    1. BEM CSS classes used in components but never defined in `globals.css`
+    2. Tailwind v4 `@theme` block missing - semantic colors (`bg-surface`, `text-text-muted`) didn't work
+    3. Dashboard components used Tailwind semantic colors instead of BEM classes
+    4. Login form used dark-theme Tailwind classes (`bg-white/5`, `text-white`) on light background
+    5. Allergen grid used flexbox instead of CSS grid, causing inconsistent tile sizes
+
+*   **Fix 1: Allergen Selection Page**
+    *   Changed `.allergen-grid__buttons` from flexbox to CSS grid (2-column)
+    *   Added `aspect-ratio: 1 / 0.85` to `.allergen-option` for consistent tile sizing
+    *   Added ~70 lines of `.allergen-group*` styles for collapsible groups
+
+*   **Fix 2: Results Page**
+    *   Added ~100 lines of accordion, menu-item, and selection-summary styles
+    *   Added severity pill styling (`.selection-pill--life_threatening`, etc.)
+
+*   **Fix 3: Dashboard**
+    *   Added `@theme` block to globals.css mapping CSS variables to Tailwind
+    *   Converted `DashboardNav.tsx` from Tailwind semantic classes to BEM
+    *   Added ~200 lines of dashboard layout, sidebar, mobile header styles
+    *   Added form styling (`.dashboard-form__*`)
+
+*   **Fix 4: Login Page**
+    *   Rewrote `LoginForm.tsx` to use BEM classes instead of dark-theme Tailwind
+    *   Changed `login/page.tsx` from gradient background to `.auth-page` wrapper
+    *   Added ~100 lines of auth styles (`.auth-card`, `.auth-form__*`)
+
+*   **Files Modified**:
+    *   `src/app/globals.css` - Added ~800 lines of missing styles, added `@theme` block
+    *   `src/app/login/page.tsx` - Simplified to use `.auth-page` wrapper
+    *   `src/app/login/LoginForm.tsx` - Converted to BEM classes
+    *   `src/components/dashboard/DashboardNav.tsx` - Converted to BEM classes
+
+*   **Documentation Created**:
+    *   `directives/css_styling_system.md` - NEW: Comprehensive CSS architecture docs (~560 lines)
+    *   `directives/known_issues_and_fixes.md` - Added BUG-003 entry
+
+*   **Related Directives**:
+    *   See `directives/css_styling_system.md` for full CSS reference
+    *   See `directives/known_issues_and_fixes.md` BUG-003 for detailed analysis
+
+*   **Status**: **Fixed** (Local). Build passes.
+
+---
+
+### v4.1 - Confidence-Based Severity Filtering (2026-02-19)
+
+**Major Feature**: Allergen severity levels now control filtering thresholds. Life-threatening allergies require higher confidence than preferences.
+
+*   **Problem Solved**: Previously, severity (preference/allergy/life_threatening) was collected but discarded at line 63 of route.ts. All allergens filtered identically regardless of severity. Now confidence thresholds ensure stricter filtering for serious allergies.
+
+*   **Severity Thresholds**:
+    *   Preference: >25% confidence required (low bar, show most items)
+    *   Allergy: >80% confidence required (high bar, fairly certain)
+    *   Life-threatening: >95% confidence required (near certainty)
+
+*   **Feature 1: Pre-Computed Confidence Scores**
+    *   Rule-based scoring (no LLM at query time)
+    *   Stored in `allergen_confidence` JSONB column
+    *   Factors: explicit allergen flags, ingredient keywords, cross-contamination
+    *   **Files Added**:
+        *   `src/lib/confidence.ts` - Threshold constants and helpers
+        *   `src/lib/compute-confidence.ts` - Calculation logic
+
+*   **Feature 2: Cross-Contamination Adjustments**
+    *   Venue-level risk settings per allergen
+    *   Adjusts confidence: +20% (none), +10% (low), 0% (medium), -20% (high)
+    *   **Database Table**: `venue_cross_contamination`
+
+*   **Feature 3: AI Confidence Scores**
+    *   AI now returns confidence 0-100 for custom tags
+    *   Same severity thresholds apply
+    *   Strictest severity from all custom tags determines threshold
+    *   **Files Modified**: `src/lib/ai-filter.ts`
+
+*   **API Route Changes**:
+    *   Line 63 now preserves severity: `allergensWithSeverity` instead of `allergenIds`
+    *   New routing: `filterMenuWithConfidence()` for Supabase venues with confidence data
+    *   **Files Modified**: `src/app/api/submit/route.ts`
+
+*   **Database Schema**:
+    *   `menu_items.allergen_confidence` JSONB column
+    *   `venue_cross_contamination` table with RLS policies
+    *   **Migration**: `supabase/migrations/20260219_add_allergen_confidence.sql`
+
+*   **Related Documentation**:
+    *   `directives/confidence_scoring.md` - Full directive (NEW)
+    *   `directives/backend_menu_filter.md` - Updated with §15
+
+---
+
+### v4.0 - Dashboard Admin Portal with Supabase (2026-02-19)
+
+**Major Feature**: Added protected admin portal for venue and menu management, powered by Supabase authentication and PostgreSQL database.
+
+*   **Problem Solved**: Previously, menu data was managed manually in Google Sheets. Now venue owners can manage their menus through a web dashboard, with multi-user support and role-based access.
+
+*   **Feature 1: Supabase Authentication**
+    *   Email/password signup and login
+    *   Session management via cookies and middleware
+    *   Protected routes at `/dashboard/*`
+    *   Auth callback handler for OAuth (future expansion)
+    *   **Files Added**:
+        *   `src/lib/supabase/client.ts` - Browser client
+        *   `src/lib/supabase/server.ts` - Server client with cookies
+        *   `src/lib/supabase/middleware.ts` - Session refresh helper
+        *   `src/lib/supabase/types.ts` - TypeScript type definitions
+        *   `src/middleware.ts` - Route protection middleware
+        *   `src/app/login/page.tsx` - Login page wrapper
+        *   `src/app/login/LoginForm.tsx` - Login/signup form component
+        *   `src/app/auth/callback/route.ts` - OAuth callback handler
+
+*   **Feature 2: Multi-Venue Support**
+    *   Users can create and manage multiple venues
+    *   Each venue has unique URL slug (e.g., `/v/the-blue-door`)
+    *   Venue membership with roles: owner, admin, editor
+    *   **Database Tables**: `venues`, `venue_members`
+    *   **Files Added**:
+        *   `src/app/dashboard/venues/page.tsx` - Venue list
+        *   `src/app/dashboard/venues/new/page.tsx` - Create venue form
+        *   `src/app/dashboard/venues/[venueId]/page.tsx` - Venue detail
+        *   `src/app/dashboard/venues/[venueId]/settings/page.tsx` - Venue settings
+
+*   **Feature 3: Menu Item Management**
+    *   Full CRUD for menu items per venue
+    *   Allergen toggle grid using existing `ALL_FILTERS`
+    *   Stored as JSONB allergen profiles in database
+    *   CSV import tool for bulk menu upload
+    *   **Database Table**: `menu_items`
+    *   **Files Added**:
+        *   `src/app/dashboard/venues/[venueId]/menu/new/page.tsx` - Add item
+        *   `src/app/dashboard/venues/[venueId]/menu/[itemId]/page.tsx` - Edit item
+        *   `src/app/dashboard/venues/[venueId]/import/page.tsx` - CSV import
+        *   `src/components/dashboard/MenuItemForm.tsx` - Reusable form
+
+*   **Feature 4: Public Venue Pages**
+    *   URL pattern: `/v/[slug]` (e.g., `ai-llergy.co.nz/v/the-blue-door`)
+    *   Server component fetches venue + active menu items
+    *   Client component handles allergen filtering
+    *   Reuses existing allergen selection and filtering logic
+    *   **Files Added**:
+        *   `src/app/v/[slug]/page.tsx` - Server component loader
+        *   `src/app/v/[slug]/VenueMenuClient.tsx` - Client filtering
+
+*   **Feature 5: Dashboard Layout**
+    *   Responsive sidebar navigation
+    *   User info header with logout
+    *   BEM-style CSS classes for dashboard components
+    *   **Files Added**:
+        *   `src/app/dashboard/layout.tsx` - Dashboard shell
+        *   `src/app/dashboard/page.tsx` - Dashboard home
+
+*   **Database Schema** (`supabase/schema.sql`):
+    *   Row Level Security (RLS) for multi-tenant isolation
+    *   Triggers for auto-creating user profiles and venue ownership
+    *   JSONB allergen profiles for flexible allergen storage
+
+*   **CSS Additions** (~400 lines in `globals.css`):
+    *   Dashboard layout, sidebar, header styles
+    *   Venue grid and card components
+    *   Data tables and form styling
+    *   Button variants (primary, secondary, danger)
+    *   Empty states and loading indicators
+
+*   **Dependencies Added**:
+    *   `@supabase/supabase-js` - Supabase client
+    *   `@supabase/ssr` - Server-side rendering helpers
+
+*   **TypeScript Workarounds**:
+    *   Without generated types, used explicit type casting for Supabase queries
+    *   Pattern: `as { data: Type | null; error: unknown }` for SELECT
+    *   Pattern: `(supabase as any).from('table')` for INSERT/UPDATE/DELETE
+    *   See `directives/known_issues_and_fixes.md` for details
+
+*   **Related Directives**:
+    *   See `directives/dashboard_admin.md` for dashboard functionality
+    *   See `directives/supabase_integration.md` for Supabase setup
+    *   See `directives/known_issues_and_fixes.md` for TypeScript issues
+
+*   **Status**: **Live** (Local). Build passes. Ready for testing.
+
+---
+
+### v3.0 - Batch Severity Selection Flow (2026-02-19)
+
+**Major UX Overhaul**: Replaced per-allergen modal popup with batch severity assignment. Users now select allergens freely, then assign severity levels for all selections in a single modal before submission.
+
+*   **Problem Solved**: Previous flow interrupted user with a modal popup on every allergen click. This was friction-heavy for users with multiple allergies. New flow allows rapid selection, with severity assignment consolidated into one step.
+
+*   **New Flow**:
+    1. User clicks allergens freely (toggle on/off, no popup)
+    2. Adds custom tags via autocomplete
+    3. Clicks Submit → **SeverityModal** opens showing all selections
+    4. Assigns severity for each item using 3-button segmented control
+    5. Checks responsibility acknowledgment checkbox
+    6. Confirms → Submits to API
+
+*   **Feature 1: 3-Level Severity System**
+    *   **Preference** (Green) - "I prefer to avoid this"
+    *   **Intolerance/Allergy** (Orange) - "I cannot eat this safely"
+    *   **Life Threatening** (Red) - "Medical emergency risk"
+    *   Default: All items pre-selected as "Preference" for quick confirmation
+    *   **Data Model**: `SeverityType = "preference" | "allergy" | "life_threatening"`
+
+*   **Feature 2: Batch SeverityModal Component**
+    *   Shows all pending allergens, custom allergen IDs, and custom tags
+    *   Each item displays: Icon + Name (left), Segmented Control P|A|L (right)
+    *   Scrollable list for many selections
+    *   Responsibility checkbox required before confirm
+    *   **Files Added**: `src/components/SeverityModal.tsx`
+
+*   **Feature 3: Pending Selection State**
+    *   Allergens clicked but not yet confirmed show "pending" state
+    *   Generic highlight (no severity color until modal confirmed)
+    *   **State**: `pendingAllergenIds: string[]` separate from `selectedAllergens: SelectedAllergen[]`
+
+*   **Feature 4: Responsibility Acknowledgment**
+    *   Checkbox: "I take full responsibility that the information submitted is as accurate as possible"
+    *   Confirm button disabled until checked
+    *   Prevents accidental submission
+
+*   **Color Scheme Change** (Breaking):
+    *   **Old**: Yellow (Saffron) for preferences, Red (Margaux) for allergies
+    *   **New**: Green → Orange → Red severity gradient
+    *   CSS variables:
+        *   `--color-severity-preference: #22c55e` (Green)
+        *   `--color-severity-allergy: #f97316` (Orange)
+        *   `--color-severity-critical: #dc2626` (Red)
+
+*   **Files Added**:
+    *   `src/components/SeverityModal.tsx` - Batch severity assignment modal
+
+*   **Files Modified**:
+    *   `src/lib/allergens.ts` - Added `SeverityType`, `SEVERITY_OPTIONS`, extended `CustomTag` with `type?`
+    *   `src/app/page.tsx` - New state management, removed old modal logic
+    *   `src/components/AllergenButton.tsx` - Added pending state, `life_threatening` support
+    *   `src/components/AllergenGrid.tsx` - Added `pendingAllergenIds` prop
+    *   `src/components/AllergenGroup.tsx` - Added `pendingAllergenIds` prop
+    *   `src/components/SelectionSummary.tsx` - Three severity categories display
+    *   `src/app/globals.css` - New severity colors, modal styles, checkbox styles
+
+*   **Files Deprecated**:
+    *   `src/components/AllergenTypeModal.tsx` - No longer used (can be deleted)
+
+*   **API Unchanged**: Backend still extracts IDs for filtering. `life_threatening` type is UI-only for now.
+
+*   **Related Directives**:
+    *   See `directives/allergen_management.md` §6 for updated severity documentation
+    *   See `directives/known_issues_and_fixes.md` for any issues
+
+*   **Status**: **Live** (Local). Build passes.
+
+---
 
 ### v2.4.4 - Hybrid Column + AI Filtering for Missing Columns (2026-02-13)
 
@@ -544,6 +854,10 @@
 *   [x] ~~Add expandable ingredient dropdown to menu items~~ (Done in v2.5)
 *   [x] ~~Add custom tags for restrictions not in allergen list~~ (Done in v2.6)
 *   [x] ~~Add AI-based menu filtering using ingredients~~ (Done in v2.6)
+*   [x] ~~Add 3-level severity system (Preference, Intolerance/Allergy, Life Threatening)~~ (Done in v3.0)
+*   [x] ~~Batch severity assignment modal instead of per-click popup~~ (Done in v3.0)
+*   [x] ~~Add responsibility acknowledgment checkbox before submit~~ (Done in v3.0)
+*   [x] ~~Add ability to change allergy/preference type after selection~~ (Done in v3.0 - batch modal allows adjustment)
 *   [ ] Add corresponding columns to Google Sheet for new allergens (peanuts, eggs, fish, etc.)
 *   [ ] Mobile responsive testing adjustments (375px, 414px breakpoints)
 *   [ ] Add PDF export for filtered menu
@@ -552,9 +866,29 @@
 *   [ ] Add item images (if available in Google Sheet)
 *   [ ] Add "Share results" feature (deep link with allergen params)
 *   [ ] Add "Select All" option for allergen groups (e.g., "All Nuts")
-*   [ ] Add ability to change allergy/preference type after selection
 *   [ ] Learn from AI interpretations: log successful matches, bulk-add to local synonym map
 *   [ ] Add voice input for allergen entry ("I'm allergic to shellfish and nuts")
 *   [ ] Persist user's allergen selections in localStorage for returning users
 *   [ ] Cache AI filtering results for common custom tag combinations
 *   [ ] Add progress indicator for AI filtering (batch progress)
+*   [ ] Backend severity handling (different filtering/warnings per severity level)
+*   [ ] Delete deprecated AllergenTypeModal.tsx component
+*   [x] ~~Severity slider UI (replace P/A/L buttons with draggable slider)~~ (Done in v4.3)
+*   [x] ~~Fix loading spinner animation~~ (Done in v4.3)
+*   [x] ~~Fix desktop width expansion issue~~ (Done in v4.3)
+*   [x] ~~Move allergen group chevron to far right~~ (Done in v4.3)
+*   [x] ~~Add dashboard admin portal for venue management~~ (Done in v4.0)
+*   [x] ~~Integrate Supabase for authentication~~ (Done in v4.0)
+*   [x] ~~Add multi-venue support with role-based access~~ (Done in v4.0)
+*   [x] ~~Add menu item CRUD with allergen toggles~~ (Done in v4.0)
+*   [x] ~~Add CSV import tool for bulk menu upload~~ (Done in v4.0)
+*   [x] ~~Add public venue pages at /v/[slug]~~ (Done in v4.0)
+*   [ ] Generate Supabase types with CLI for proper TypeScript support
+*   [ ] Add user profile page with password change
+*   [ ] Add team member invites to venues
+*   [ ] Add venue branding/logo upload
+*   [ ] Add menu categories/sections
+*   [ ] Add drag-and-drop menu item reordering
+*   [ ] Add analytics dashboard for venue owners
+*   [ ] Add QR code generator for venue URLs
+*   [ ] Migrate existing Google Sheet menu to first Supabase venue

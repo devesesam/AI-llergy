@@ -20,12 +20,14 @@ Adding a new allergen requires updating definitions and synonyms. New allergens 
 
 | File | Purpose | Location |
 |------|---------|----------|
-| `allergens.ts` | Allergen definitions, groups, types | `ai-llergy-webapp/src/lib/allergens.ts` |
+| `allergens.ts` | Allergen definitions, groups, types, SEVERITY_OPTIONS | `ai-llergy-webapp/src/lib/allergens.ts` |
 | `interpret-allergy.ts` | Synonym mappings, `searchSynonyms()` | `ai-llergy-webapp/src/lib/interpret-allergy.ts` |
 | `AllergenGroup.tsx` | Collapsible group component | `ai-llergy-webapp/src/components/AllergenGroup.tsx` |
-| `AllergenTypeModal.tsx` | Allergy/preference popup | `ai-llergy-webapp/src/components/AllergenTypeModal.tsx` |
+| `SeverityModal.tsx` | Batch severity assignment modal (v3.0) | `ai-llergy-webapp/src/components/SeverityModal.tsx` |
+| `AllergenTypeModal.tsx` | **DEPRECATED** - Per-click popup (v2.3) | `ai-llergy-webapp/src/components/AllergenTypeModal.tsx` |
 | `AutocompleteInput.tsx` | Tag-based input with typeahead (v2.4) | `ai-llergy-webapp/src/components/AutocompleteInput.tsx` |
 | `AllergenTag.tsx` | Removable allergen tag chip (v2.4) | `ai-llergy-webapp/src/components/AllergenTag.tsx` |
+| `SelectionSummary.tsx` | Results display grouped by severity (v3.0) | `ai-llergy-webapp/src/components/SelectionSummary.tsx` |
 | `api/interpret/route.ts` | AI interpretation endpoint (v2.4) | `ai-llergy-webapp/src/app/api/interpret/route.ts` |
 | Google Sheet | Menu data with allergen columns | Sheet ID: `1HNWCErJzCBRfy-oPOqPgg1UYYbhOkD5tuVrLWevryeU` |
 
@@ -170,9 +172,9 @@ export const ALLERGEN_GROUPS: AllergenGroup[] = [
 2. Allergens can only belong to ONE group
 3. Allergens not in any group appear in "Other Allergens" section
 
-## 6. Allergy vs Preference Distinction (v2.3)
+## 6. Severity Selection System (v3.0)
 
-Users now choose whether each selection is an "Allergy" or "Preference" when selecting.
+Users assign severity levels to their selections in a batch modal before submission. This replaced the per-click modal popup from v2.3.
 
 ### Data Structure
 
@@ -180,38 +182,138 @@ Users now choose whether each selection is an "Allergy" or "Preference" when sel
 // Old (pre-v2.3)
 selectedAllergens: Set<string>  // Just IDs
 
-// New (v2.3+)
+// v2.3-v2.6
 interface SelectedAllergen {
   id: string;
   type: "allergy" | "preference";
 }
-selectedAllergens: SelectedAllergen[]
+
+// v3.0+
+export type SeverityType = "preference" | "allergy" | "life_threatening";
+
+interface SelectedAllergen {
+  id: string;
+  type: SeverityType;
+}
+
+// State split: pending vs confirmed
+pendingAllergenIds: string[]           // Selected but no severity yet
+selectedAllergens: SelectedAllergen[]  // Confirmed with severity
 ```
 
-### Visual Styling
+### Severity Options
 
-| Type | Background | Border | Badge |
-|------|------------|--------|-------|
-| Allergy | `rgba(154, 32, 47, 0.1)` | Margaux (`#9a202f`) | Red "A" |
-| Preference | `rgba(244, 178, 35, 0.1)` | Saffron (`#f4b223`) | Orange "P" |
+```typescript
+export const SEVERITY_OPTIONS = [
+  { value: "preference", label: "Preference", shortLabel: "P", description: "I prefer to avoid this" },
+  { value: "allergy", label: "Intolerance/Allergy", shortLabel: "A", description: "I cannot eat this safely" },
+  { value: "life_threatening", label: "Life Threatening", shortLabel: "L", description: "Medical emergency risk" },
+];
+```
 
-### User Flow
+### Visual Styling (v3.0 Colors)
 
-1. User clicks unselected allergen → Modal appears
-2. User chooses "Allergy" or "Preference"
-3. Allergen added with type, styled accordingly
-4. Clicking selected allergen removes it (no modal)
+| Type | CSS Variable | Color | Background | Badge |
+|------|--------------|-------|------------|-------|
+| Preference | `--color-severity-preference` | `#22c55e` (Green) | `rgba(34, 197, 94, 0.1)` | Green "P" |
+| Intolerance/Allergy | `--color-severity-allergy` | `#f97316` (Orange) | `rgba(249, 115, 22, 0.1)` | Orange "A" |
+| Life Threatening | `--color-severity-critical` | `#dc2626` (Red) | `rgba(220, 38, 38, 0.1)` | Red "L" |
+
+> **Breaking Change (v3.0)**: The color scheme changed from Yellow/Red (v2.3) to Green/Orange/Red severity gradient.
+
+### User Flow (v4.3 - Slider UI)
+
+1. User clicks allergens freely → Toggle on/off (no popup)
+2. User adds custom tags via autocomplete
+3. User clicks Submit → **SeverityModal** opens
+4. Modal shows all selections with **3-point slider** (replaces buttons)
+5. Each item displays: allergen name above, draggable slider below
+6. Slider has labeled points: "Preference" | "Intolerance/Allergy" | "Life Threatening"
+7. User drags slider or clicks points to adjust severity (default: Preference)
+8. User checks responsibility acknowledgment checkbox
+9. User clicks Confirm → Data submitted to API
+
+### Severity Slider UI (v4.3)
+
+The slider replaces the P/A/L button segmented control:
+
+**Visual Design**:
+- Track shows color gradient: green → orange → red
+- Thumb color matches current selection (green/orange/red)
+- Labels positioned above slider at each third
+- Full-width slider within modal item
+
+**CSS Classes**:
+```css
+.severity-slider                    /* Container */
+.severity-slider__labels            /* Label row above slider */
+.severity-slider__label--preference /* Green text */
+.severity-slider__label--allergy    /* Orange text */
+.severity-slider__label--life_threatening  /* Red text */
+.severity-slider__input             /* Range input */
+.severity-slider__input--preference /* Green thumb */
+.severity-slider__input--allergy    /* Orange thumb */
+.severity-slider__input--life_threatening /* Red thumb */
+```
+
+**Implementation**:
+```typescript
+<input
+  type="range"
+  min="0"
+  max="2"
+  step="1"
+  value={SEVERITY_OPTIONS.findIndex(opt => opt.value === severityMap[item.id])}
+  onChange={(e) => handleSeverityChange(item.id, SEVERITY_OPTIONS[parseInt(e.target.value)].value)}
+  className={`severity-slider__input severity-slider__input--${severityMap[item.id]}`}
+/>
+```
+
+**Modal Item Layout Change**:
+- v3.0: Horizontal (name left, buttons right)
+- v4.3: Vertical (name above, slider below full-width)
+- Allows slider to use full width for better touch targets
+
+### Pending State
+
+Allergens that are selected but haven't been through the SeverityModal are "pending":
+
+```typescript
+// Pending state
+pendingAllergenIds.includes(allergen.id)  // true = selected, no type
+
+// Confirmed state
+selectedAllergens.some(s => s.id === allergen.id)  // true = has severity
+```
+
+**CSS Classes**:
+- `.selected--pending` - Generic highlight (no severity color)
+- `.selected--preference` - Green highlight
+- `.selected--allergy` - Orange highlight
+- `.selected--life_threatening` - Red highlight
 
 ### API Handling
 
-The type distinction is **UI-only**. The backend extracts just the IDs for filtering:
+The type distinction remains **UI-only**. The backend extracts IDs for filtering:
 
 ```typescript
 // In route.ts
 const allergenIds = allergens.map((a: SelectedAllergen) => a.id);
 ```
 
-Both allergies and preferences filter identically. The distinction is for user awareness and results display only.
+All severity levels filter identically. The distinction is for:
+1. User awareness of their selection severity
+2. Results page display (grouped by severity)
+3. Future backend enhancements (e.g., different handling per severity)
+
+### Results Display (SelectionSummary)
+
+Selections are grouped into three sections:
+1. **Life Threatening** - Red pills, shown first (most critical)
+2. **Intolerance/Allergy** - Orange pills
+3. **Preferences** - Green pills
+
+Custom tags also display with their assigned severity.
 
 ## 7. How to Reorder Allergens
 
@@ -352,6 +454,23 @@ After adding/modifying allergens:
 
 ## 13. Version History
 
+### v4.3 (2026-02-19)
+- **Severity Slider UI**: Replaced P/A/L buttons with draggable 3-point slider
+- **Labels**: Added "Preference" | "Intolerance/Allergy" | "Life Threatening" text above slider
+- **Modal Layout**: Changed from horizontal to vertical layout for better slider usability
+- **Browser Support**: Added Firefox `-moz-range-thumb` styles
+- **See**: Section 6 "Severity Slider UI" for implementation details
+
+### v3.0 (2026-02-19)
+- **Batch Severity Selection**: Replaced per-allergen modal with batch SeverityModal
+- **3-Level Severity**: Added `life_threatening` type (Preference → Intolerance/Allergy → Life Threatening)
+- **Color Scheme Change**: Yellow/Red → Green/Orange/Red severity gradient
+- **Pending State**: Split `pendingAllergenIds` from `selectedAllergens` for staged selection
+- **Responsibility Checkbox**: Required acknowledgment before confirm
+- **New Files**: `SeverityModal.tsx`
+- **Updated**: `allergens.ts` (SeverityType, SEVERITY_OPTIONS), all selection components
+- **See**: Section 6 for complete severity documentation
+
 ### v2.4.4 (2026-02-13)
 - **Hybrid Filtering**: Allergens without columns now use AI instead of failing
 - **Problem**: v2.4.3 fix caused missing columns to exclude ALL items
@@ -417,9 +536,12 @@ After adding/modifying allergens:
 - [x] ~~Add allergen grouping UI (collapsible sections by tier)~~ (Done in v2.3)
 - [x] ~~Add allergen search/filter in form~~ (Done in v2.4 via autocomplete)
 - [ ] Add "Select All" quick action for groups (e.g., "Select All Nuts")
-- [ ] Add ability to change allergy/preference type after selection (currently must deselect and reselect)
+- [x] ~~Add ability to change allergy/preference type after selection~~ (Done in v3.0 - batch modal allows adjustment)
+- [x] ~~Add 3-level severity system (Preference, Allergy, Life Threatening)~~ (Done in v3.0)
+- [x] ~~Batch severity assignment instead of per-click popup~~ (Done in v3.0)
 - [ ] Persist selections in localStorage for returning users
 - [ ] Learn from AI: log successful interpretations, bulk-add to SYNONYM_MAP
 - [x] ~~Add fuzzy matching (Levenshtein distance) before triggering AI~~ (Done in v2.4.1)
 - [x] ~~Add phrase tokenization for natural language input~~ (Done in v2.4.1)
 - [ ] Add keyboard navigation for autocomplete dropdown
+- [ ] Backend severity handling (different filtering/warnings per severity level)

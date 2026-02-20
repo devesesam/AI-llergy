@@ -8,7 +8,7 @@ After the user submits their allergen selections, the form is replaced by a resu
 - **Selection Summary** (v2.3) - User's selected allergens with allergy/preference labels
 - Summary header with item count
 - Collapsible "Safe to Eat" section (expanded by default)
-- Collapsible "Can Be Modified" section (collapsed by default)
+- Collapsible "Modification Suggestions - Subject to kitchen approval" section (collapsed by default) *(renamed in v4.3)*
 - Excluded item count
 - Custom allergy note (if applicable)
 - "Start Over" button to return to form
@@ -270,6 +270,11 @@ const handleStartOver = () => {
 - [x] ~~Add toggle to show/hide ingredients on menu items~~ (Done in v2.5)
 
 ## 10. Version History
+
+### v4.3 (2026-02-19)
+- **Caution Section Title**: Changed from "Can Be Modified" to "Modification Suggestions - Subject to kitchen approval"
+- **Reason**: More accurate phrasing that sets proper expectations for users
+- **Files Modified**: `MenuResults.tsx` (line 77)
 
 ### v2.5 (2026-02-13)
 - **Expandable Ingredients**: Added dropdown toggle to each menu item to show/hide ingredients

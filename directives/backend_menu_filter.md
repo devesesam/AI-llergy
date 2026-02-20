@@ -699,13 +699,98 @@ function fallbackToCaution(items, restrictions) {
 | `ai-filter.ts` | Main AI filtering logic |
 | `route.ts` | Detects customTags, routes to AI or standard |
 
-## 15. Future Improvements
+## 15. Confidence-Based Filtering (v3.1)
+
+### Overview
+
+v3.1 introduces confidence-based filtering that uses allergen severity to determine thresholds:
+
+| Severity | Threshold | Meaning |
+|----------|-----------|---------|
+| Preference | >25% | Low bar - show most items |
+| Allergy | >80% | High bar - must be fairly certain |
+| Life-threatening | >95% | Near certainty required |
+
+### Key Change: Severity No Longer Discarded
+
+**Before (v2.3-v3.0)**:
+```typescript
+// route.ts line 63 - severity was discarded!
+const allergenIds = allergens.map((a: SelectedAllergen) => a.id);
+```
+
+**After (v3.1+)**:
+```typescript
+// route.ts - severity preserved for filtering
+const allergensWithSeverity: AllergenWithSeverity[] = allergens.map((a) => ({
+  id: a.id,
+  type: a.type || "preference",
+}));
+```
+
+### New Files
+
+| File | Purpose |
+|------|---------|
+| `confidence.ts` | Threshold constants, helper functions |
+| `compute-confidence.ts` | Rule-based confidence calculation |
+
+### New Functions
+
+| Function | File | Purpose |
+|----------|------|---------|
+| `filterMenuWithConfidence()` | `filter-menu.ts` | Confidence-based filtering for Supabase venues |
+| `hasConfidenceScores()` | `filter-menu.ts` | Detects if menu has pre-computed scores |
+| `computeAllergenConfidence()` | `compute-confidence.ts` | Calculates confidence for a menu item |
+
+### Routing Logic
+
+```typescript
+if (hasConfidenceScores(menu) && !needsAI) {
+  // CONFIDENCE PATH: Supabase venues with pre-computed scores
+  result = filterMenuWithConfidence(menu, allergensWithSeverity);
+} else if (!needsAI) {
+  // LEGACY PATH: Google Sheets with YES/NO columns
+  result = filterMenu(menu, columnAllergens);
+} else {
+  // AI PATH: Custom tags, uses AI with confidence scores
+  result = filterMenuWithAI(...);
+}
+```
+
+### AI Filter Changes
+
+AI now returns confidence scores (0-100) and filters based on severity:
+
+```typescript
+interface AIFilterResponse {
+  itemName: string;
+  status: "safe" | "caution" | "excluded";
+  confidence: number;  // NEW: 0-100 confidence score
+  warnings: string[];
+  reason: string;
+}
+```
+
+### Related Documentation
+
+See `directives/confidence_scoring.md` for full details on:
+- Confidence calculation formulas
+- Cross-contamination adjustments
+- Database schema changes
+- Testing procedures
+
+---
+
+## 16. Future Improvements
 
 - [ ] Add Redis caching for multi-instance deployments
 - [ ] Implement webhook to refresh cache when sheet updates
 - [ ] Add rate limiting for AI interpretation
 - [ ] Support multiple restaurant menus (multi-tenant)
 - [x] ~~Add ingredient-level search (not just allergen columns)~~ (Done in v2.6 via AI filtering)
-- [ ] Consider different filtering behavior for preferences vs allergies (e.g., show preferences in "Can Be Modified" only)
+- [x] ~~Different filtering behavior for preferences vs allergies~~ (Done in v3.1 via confidence thresholds)
 - [ ] Cache AI filtering results for common custom tag combinations
 - [ ] Add timeout handling for AI filtering (show partial results)
+- [ ] Confidence display in UI (progress bars per item)
+- [ ] Trigger confidence re-computation on menu changes
