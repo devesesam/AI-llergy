@@ -594,6 +594,11 @@ grep -n "new-class" ai-llergy-webapp/src/app/globals.css
 
 ## 11. Version History
 
+### v4.4 (2026-02-20)
+- **Other Allergens Dropdown**: "Other Allergens" section now uses `AllergenGroup` component
+- **No CSS Changes**: Existing `.allergen-group__*` styles apply automatically
+- **UI Pattern**: All allergen sections (except Dietary) now use consistent accordion pattern
+
 ### v4.3 (2026-02-19)
 - **Loading Spinner**: Added missing animation (`@keyframes spin`)
 - **Desktop Width**: Fixed `max-width: 100%` → `max-width: 500px` in 768px media query

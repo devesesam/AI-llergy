@@ -131,23 +131,44 @@ Update the allergen tables in:
 - This file (`directives/allergen_management.md`)
 - `directives/backend_menu_filter.md` (Section 4)
 
-## 5. Allergen Groups (v2.3)
+## 5. Allergen Groups (v4.4)
 
-Allergens are organized into collapsible groups in the UI for better usability.
+Allergens are organized into collapsible dropdown groups in the UI for better usability. All allergen categories (except Dietary Preferences) now use the same accordion-style dropdown pattern.
 
 ### Current Groups
 
-| Group ID | Label | Members | Icon |
-|----------|-------|---------|------|
-| `nuts` | Nuts | peanuts, treenuts, almond, walnut, pistachio | :peanuts: |
-| `seafood` | Seafood | fish, shellfish, molluscs | :shrimp: |
-| `aromatics` | Aromatics | garlic, onion, celery | :garlic: |
-| `spicy` | Spicy | chili, capsicum | :hot_pepper: |
+| Group ID | Label | Members | Icon | Type |
+|----------|-------|---------|------|------|
+| `nuts` | Nuts | peanuts, treenuts, almond, walnut, pistachio | 🥜 | Defined in `ALLERGEN_GROUPS` |
+| `seafood` | Seafood | fish, shellfish, molluscs | 🦐 | Defined in `ALLERGEN_GROUPS` |
+| `aromatics` | Aromatics | garlic, onion, celery | 🧄 | Defined in `ALLERGEN_GROUPS` |
+| `spicy` | Spicy | chili, capsicum | 🌶️ | Defined in `ALLERGEN_GROUPS` |
+| `other` | Other | eggs, dairy, gluten, soy, sesame, wheat, mustard, sulfites, lupin | 🍽️ | Inline in `AllergenGrid.tsx` |
 
-### Standalone Allergens (Not Grouped)
-- **Dietary**: vegetarian, vegan
-- **Big 9**: eggs, dairy, gluten, soy, sesame
-- **Other**: wheat, mustard, sulfites, lupin
+### Dietary Preferences (Standalone)
+- **Vegetarian**, **Vegan** - Displayed as individual tiles (not in dropdown)
+
+### Other Allergens Group (v4.4)
+As of v4.4, the "Other Allergens" section now uses the same dropdown accordion pattern as the named groups. This provides UI consistency and reduces visual clutter on initial page load.
+
+**Implementation**: The "Other" group is created inline in `AllergenGrid.tsx` rather than being defined in `ALLERGEN_GROUPS`:
+
+```typescript
+// In AllergenGrid.tsx
+<AllergenGroup
+  group={{
+    id: "other",
+    label: "Other",
+    icon: "🍽️",
+    members: STANDALONE_ALLERGENS.map(a => a.id),
+  }}
+  pendingAllergenIds={pendingAllergenIds}
+  selectedAllergens={selectedAllergens}
+  onAllergenClick={onAllergenClick}
+/>
+```
+
+**Why inline?** The "Other" group is computed from `STANDALONE_ALLERGENS` (allergens not in any named group). Defining it inline keeps the separation clear and automatically includes any allergens added in the future that don't belong to a specific group.
 
 ### Group Definition in `allergens.ts`
 
@@ -453,6 +474,13 @@ After adding/modifying allergens:
 - **Project**: See `directives/project_ai_llergy.md` for full changelog
 
 ## 13. Version History
+
+### v4.4 (2026-02-20)
+- **Other Allergens Dropdown**: Converted "Other Allergens" section from static grid to dropdown accordion
+- **UI Consistency**: All allergen categories (except Dietary Preferences) now use same accordion pattern
+- **Implementation**: Inline `AllergenGroup` component using `STANDALONE_ALLERGENS` for members
+- **Files Modified**: `AllergenGrid.tsx` only - reuses existing `AllergenGroup` component
+- **See**: Section 5 "Other Allergens Group" for implementation details
 
 ### v4.3 (2026-02-19)
 - **Severity Slider UI**: Replaced P/A/L buttons with draggable 3-point slider

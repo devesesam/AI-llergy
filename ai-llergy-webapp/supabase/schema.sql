@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS venues (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   slug TEXT UNIQUE NOT NULL,  -- e.g., "the-blue-door" for URL routing
+  invite_code TEXT UNIQUE NOT NULL,  -- e.g., "K7M2-9PQ4" for team invites (v4.4)
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -67,6 +68,7 @@ CREATE INDEX IF NOT EXISTS idx_venue_members_user ON venue_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_venue_members_venue ON venue_members(venue_id);
 CREATE INDEX IF NOT EXISTS idx_menu_items_venue ON menu_items(venue_id);
 CREATE INDEX IF NOT EXISTS idx_venues_slug ON venues(slug);
+CREATE INDEX IF NOT EXISTS idx_venues_invite_code ON venues(invite_code);
 CREATE INDEX IF NOT EXISTS idx_cross_contamination_venue ON venue_cross_contamination(venue_id);
 
 -- ============================================
@@ -249,8 +251,27 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- Function to add venue creator as owner
+-- Function to generate invite code on venue creation (v4.4)
 CREATE OR REPLACE FUNCTION public.handle_new_venue()
+RETURNS trigger AS $$
+BEGIN
+  -- Generate unique invite code (8 chars: XXXX-XXXX)
+  NEW.invite_code := UPPER(
+    SUBSTRING(md5(random()::text) FROM 1 FOR 4) || '-' ||
+    SUBSTRING(md5(random()::text) FROM 1 FOR 4)
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger to generate invite code (BEFORE INSERT)
+DROP TRIGGER IF EXISTS on_venue_created ON venues;
+CREATE TRIGGER on_venue_created
+  BEFORE INSERT ON venues
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_venue();
+
+-- Function to add venue creator as owner
+CREATE OR REPLACE FUNCTION public.add_venue_owner()
 RETURNS trigger AS $$
 BEGIN
   INSERT INTO public.venue_members (user_id, venue_id, role)
@@ -259,11 +280,48 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Trigger to auto-add creator as owner
-DROP TRIGGER IF EXISTS on_venue_created ON venues;
-CREATE TRIGGER on_venue_created
+-- Trigger to auto-add creator as owner (AFTER INSERT)
+DROP TRIGGER IF EXISTS on_venue_created_add_owner ON venues;
+CREATE TRIGGER on_venue_created_add_owner
   AFTER INSERT ON venues
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_venue();
+  FOR EACH ROW EXECUTE FUNCTION public.add_venue_owner();
+
+-- Function to join venue by invite code (v4.4)
+CREATE OR REPLACE FUNCTION public.join_venue_by_code(code TEXT)
+RETURNS JSON AS $$
+DECLARE
+  v_venue_id UUID;
+  v_venue_name TEXT;
+  v_existing UUID;
+BEGIN
+  -- Find venue by invite code (case-insensitive)
+  SELECT id, name INTO v_venue_id, v_venue_name
+  FROM venues WHERE invite_code = UPPER(code);
+
+  IF v_venue_id IS NULL THEN
+    RETURN json_build_object('error', 'Invalid invite code');
+  END IF;
+
+  -- Check if already a member
+  SELECT id INTO v_existing
+  FROM venue_members
+  WHERE venue_id = v_venue_id AND user_id = auth.uid();
+
+  IF v_existing IS NOT NULL THEN
+    RETURN json_build_object('error', 'You are already a member of this venue');
+  END IF;
+
+  -- Add user as editor
+  INSERT INTO venue_members (user_id, venue_id, role)
+  VALUES (auth.uid(), v_venue_id, 'editor');
+
+  RETURN json_build_object(
+    'success', true,
+    'venue_id', v_venue_id,
+    'venue_name', v_venue_name
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION public.handle_updated_at()

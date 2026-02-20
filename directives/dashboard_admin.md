@@ -279,10 +279,77 @@ All types defined in `src/lib/supabase/types.ts`:
 - **Allergen Management**: `directives/allergen_management.md` - Allergen definitions
 - **Known Issues**: `directives/known_issues_and_fixes.md` - TypeScript workarounds
 
-## 13. Future Enhancements
+## 13. Team Membership & Invite Codes (v4.4)
+
+### Overview
+Venues have a unique invite code that allows new users to join the team. This enables multi-user venue management without manual admin intervention.
+
+### How Invite Codes Work
+1. **Auto-generated**: Each venue gets a code when created (format: `XXXX-XXXX`)
+2. **Permanent**: Code doesn't expire or change
+3. **Shareable**: All venue members can see and share the code
+4. **Join as Editor**: New members join with `editor` role by default
+
+### Viewing Invite Codes
+- **Location**: Dashboard sidebar, below each venue name
+- **Format**: `Invite: XXXX-XXXX [📋]`
+- **Copy**: Click clipboard icon to copy code
+
+### Joining a Venue
+1. User signs up / logs in
+2. Goes to Venues page
+3. Clicks "Join with Code" button (or sees form if no venues)
+4. Enters invite code
+5. System validates and adds as `editor`
+6. Redirected to venue dashboard
+
+### Components
+
+**VenueActions** (`src/components/dashboard/VenueActions.tsx`)
+- Client component in venues page header
+- Shows "Join with Code" and "+ New Venue" buttons
+- Toggles compact join form visibility
+
+**JoinVenueForm** (`src/components/dashboard/JoinVenueForm.tsx`)
+- Reusable form component
+- `compact` prop for inline display
+- Calls `join_venue_by_code()` RPC function
+
+### CSS Classes
+```css
+/* Sidebar invite code display */
+.venue-invite-code { }
+.venue-invite-code__label { }
+.venue-invite-code__code { }
+.venue-invite-code__copy { }
+.venue-invite-code__copy--copied { }
+
+/* Header actions */
+.venue-actions { }
+.venue-actions__buttons { }
+.venue-actions__join-form { }
+
+/* Join form */
+.join-venue-form { }
+.join-venue-form--compact { }
+.join-venue-form__title { }
+.join-venue-form__desc { }
+.join-venue-form__row { }
+.join-venue-form__input { }
+.join-venue-form__btn { }
+.join-venue-form__error { }
+.join-venue-form__success { }
+```
+
+### Database
+- `venues.invite_code` - Unique 8-char code per venue
+- `join_venue_by_code(code TEXT)` - RPC function for secure joining
+- See `directives/supabase_integration.md` §13 for details
+
+## 14. Future Enhancements
 
 - [ ] User profile page with password change
-- [ ] Invite team members to venue
+- [x] ~~Invite team members to venue~~ (Done in v4.4 via invite codes)
 - [ ] Role-based permissions (editor can't delete)
 - [ ] Venue branding/logo upload
 - [ ] Menu categories/sections
@@ -290,3 +357,5 @@ All types defined in `src/lib/supabase/types.ts`:
 - [ ] Analytics dashboard (views, filters used)
 - [ ] Export menu to PDF
 - [ ] QR code generator for venue URL
+- [ ] Regenerate invite code (in case of security concern)
+- [ ] Set default role for invite code (owner chooses editor/admin)

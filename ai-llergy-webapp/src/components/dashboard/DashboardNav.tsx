@@ -10,6 +10,7 @@ interface Venue {
   id: string
   name: string
   slug: string
+  inviteCode: string
   role: string
 }
 
@@ -22,7 +23,14 @@ export default function DashboardNav({ user, venues }: DashboardNavProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const supabase = createClient()
+
+  const copyInviteCode = async (code: string) => {
+    await navigator.clipboard.writeText(code)
+    setCopiedCode(code)
+    setTimeout(() => setCopiedCode(null), 2000)
+  }
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -86,15 +94,29 @@ export default function DashboardNav({ user, venues }: DashboardNavProps) {
               </div>
 
               {venues.map(venue => (
-                <Link
-                  key={venue.id}
-                  href={`/dashboard/venues/${venue.id}`}
-                  className={`dashboard-sidebar__link ${pathname.includes(venue.id) ? 'dashboard-sidebar__link--active' : ''}`}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{venue.name}</span>
-                  {activeVenue?.id === venue.id && <span className="dashboard-sidebar__active-dot"></span>}
-                </Link>
+                <div key={venue.id} className="dashboard-sidebar__venue-item">
+                  <Link
+                    href={`/dashboard/venues/${venue.id}`}
+                    className={`dashboard-sidebar__link ${pathname.includes(venue.id) ? 'dashboard-sidebar__link--active' : ''}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{venue.name}</span>
+                    {activeVenue?.id === venue.id && <span className="dashboard-sidebar__active-dot"></span>}
+                  </Link>
+                  {venue.inviteCode && (
+                    <div className="venue-invite-code">
+                      <span className="venue-invite-code__label">Invite:</span>
+                      <code className="venue-invite-code__code">{venue.inviteCode}</code>
+                      <button
+                        className={`venue-invite-code__copy ${copiedCode === venue.inviteCode ? 'venue-invite-code__copy--copied' : ''}`}
+                        onClick={() => copyInviteCode(venue.inviteCode)}
+                        title="Copy invite code"
+                      >
+                        {copiedCode === venue.inviteCode ? '✓' : '📋'}
+                      </button>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           )}

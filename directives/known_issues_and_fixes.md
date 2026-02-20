@@ -550,6 +550,69 @@ When using Supabase queries to check if something exists:
 
 ---
 
+### FEATURE-002: Other Allergens Dropdown Accordion
+
+| Field | Value |
+|-------|-------|
+| **Implemented** | 2026-02-20 |
+| **Status** | Implemented (v4.4) |
+| **Severity** | Feature |
+
+**Summary**: Converted the "Other Allergens" section from a static 2-column grid to a collapsible dropdown accordion, matching the style of named allergen groups (Nuts, Seafood, Aromatics, Spicy).
+
+**Before**:
+- "Other Allergens" displayed as ~9 individual tiles in a static 2-column grid
+- Tiles always visible, taking up significant vertical space
+- Inconsistent UI compared to grouped allergens
+
+**After**:
+- "Other Allergens" displays as a single collapsible dropdown labeled "🍽️ Other"
+- Click to expand and see all 9 allergens in 2-column grid
+- Selection count badge shows selected items (e.g., "2/9")
+- Consistent accordion UI across all allergen categories
+
+**Implementation Approach**:
+Rather than modifying `ALLERGEN_GROUPS` in `allergens.ts`, the "Other" group is created inline in `AllergenGrid.tsx`:
+
+```typescript
+<AllergenGroup
+  group={{
+    id: "other",
+    label: "Other",
+    icon: "🍽️",
+    members: STANDALONE_ALLERGENS.map(a => a.id),
+  }}
+  pendingAllergenIds={pendingAllergenIds}
+  selectedAllergens={selectedAllergens}
+  onAllergenClick={onAllergenClick}
+/>
+```
+
+**Why inline (not in ALLERGEN_GROUPS)?**
+1. Keeps semantic separation between named groups and "other" category
+2. `STANDALONE_ALLERGENS` is computed dynamically (allergens not in any group)
+3. Future allergens automatically appear in "Other" without additional config
+4. Single-file change, minimal risk
+
+**Files Modified**:
+- `ai-llergy-webapp/src/components/AllergenGrid.tsx` (lines 76-92)
+
+**No Changes Needed**:
+- `allergens.ts` - Data model unchanged
+- `AllergenGroup.tsx` - Component works as-is
+- `globals.css` - Existing styles apply automatically
+
+**Test Case**:
+1. Navigate to allergen selection page (/)
+2. Verify "Other Allergens" section shows dropdown with "🍽️ Other" header
+3. Click to expand - should show 9 allergens (eggs, dairy, gluten, soy, sesame, wheat, mustard, sulfites, lupin)
+4. Select an allergen - count badge should appear (e.g., "1/9")
+5. Collapse dropdown - selection persists
+
+**Related**: See `directives/allergen_management.md` §5 for group documentation.
+
+---
+
 ## 3. Open Issues
 
 ### ISSUE-005: Supabase TypeScript Type Inference Workaround

@@ -73,20 +73,21 @@ export default function AllergenGrid({
         </div>
       </div>
 
-      {/* Standalone Allergens */}
+      {/* Other Allergens (Standalone) */}
       <div className="allergen-grid__section">
         <h3 className="allergen-grid__section-title">Other Allergens</h3>
-        <div className="allergen-grid__buttons">
-          {STANDALONE_ALLERGENS.map((allergen) => (
-            <AllergenButton
-              key={allergen.id}
-              allergen={allergen}
-              isSelected={isConfirmed(allergen.id)}
-              isPending={isPending(allergen.id)}
-              selectionType={getSelectionType(allergen.id)}
-              onToggle={() => onAllergenClick(allergen)}
-            />
-          ))}
+        <div className="allergen-grid__groups">
+          <AllergenGroup
+            group={{
+              id: "other",
+              label: "Other",
+              icon: "🍽️",
+              members: STANDALONE_ALLERGENS.map(a => a.id),
+            }}
+            pendingAllergenIds={pendingAllergenIds}
+            selectedAllergens={selectedAllergens}
+            onAllergenClick={onAllergenClick}
+          />
         </div>
       </div>
     </div>

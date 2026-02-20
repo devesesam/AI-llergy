@@ -9,6 +9,7 @@ interface VenueMembership {
     id: string
     name: string
     slug: string
+    invite_code: string
   } | null
 }
 
@@ -34,7 +35,8 @@ export default async function DashboardLayout({
       venues (
         id,
         name,
-        slug
+        slug,
+        invite_code
       )
     `)
     .eq('user_id', user.id) as { data: VenueMembership[] | null }
@@ -43,6 +45,7 @@ export default async function DashboardLayout({
     id: m.venues?.id || m.venue_id,
     name: m.venues?.name || 'Unknown',
     slug: m.venues?.slug || '',
+    inviteCode: m.venues?.invite_code || '',
     role: m.role,
   })) || []
 

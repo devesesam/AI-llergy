@@ -510,6 +510,111 @@ npx supabase gen types typescript --project-id [project-id] > src/lib/supabase/d
 - **Project Overview**: `directives/project_ai_llergy.md` - Full changelog
 - **Known Issues**: `directives/known_issues_and_fixes.md` - TypeScript workarounds
 
+## 13. Venue Invite Codes (v4.4)
+
+### Migration
+**File**: `supabase/migrations/20260220_add_venue_invite_codes.sql`
+
+Run this in Supabase SQL Editor to add invite code functionality.
+
+### Schema Change
+```sql
+-- Add invite_code column to venues
+ALTER TABLE venues ADD COLUMN IF NOT EXISTS invite_code TEXT UNIQUE;
+
+-- Generate codes for existing venues
+UPDATE venues SET invite_code =
+  UPPER(SUBSTRING(md5(random()::text) FROM 1 FOR 4) || '-' ||
+        SUBSTRING(md5(random()::text) FROM 1 FOR 4))
+WHERE invite_code IS NULL;
+
+-- Make NOT NULL after populating
+ALTER TABLE venues ALTER COLUMN invite_code SET NOT NULL;
+```
+
+### Updated Trigger
+The `handle_new_venue()` function now generates invite codes:
+```sql
+CREATE OR REPLACE FUNCTION public.handle_new_venue()
+RETURNS trigger AS $$
+BEGIN
+  -- Generate unique invite code (8 chars: XXXX-XXXX)
+  NEW.invite_code := UPPER(
+    SUBSTRING(md5(random()::text) FROM 1 FOR 4) || '-' ||
+    SUBSTRING(md5(random()::text) FROM 1 FOR 4)
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Changed to BEFORE INSERT (not AFTER)
+CREATE TRIGGER on_venue_created
+  BEFORE INSERT ON venues
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_venue();
+```
+
+Note: Owner membership is now added by a separate AFTER INSERT trigger `on_venue_created_add_owner`.
+
+### RPC Function: join_venue_by_code
+Allows users to join a venue by entering its invite code:
+
+```sql
+CREATE OR REPLACE FUNCTION public.join_venue_by_code(code TEXT)
+RETURNS JSON AS $$
+DECLARE
+  v_venue_id UUID;
+  v_venue_name TEXT;
+  v_existing UUID;
+BEGIN
+  -- Find venue by invite code (case-insensitive)
+  SELECT id, name INTO v_venue_id, v_venue_name
+  FROM venues WHERE invite_code = UPPER(code);
+
+  IF v_venue_id IS NULL THEN
+    RETURN json_build_object('error', 'Invalid invite code');
+  END IF;
+
+  -- Check if already a member
+  SELECT id INTO v_existing
+  FROM venue_members
+  WHERE venue_id = v_venue_id AND user_id = auth.uid();
+
+  IF v_existing IS NOT NULL THEN
+    RETURN json_build_object('error', 'You are already a member of this venue');
+  END IF;
+
+  -- Add user as editor
+  INSERT INTO venue_members (user_id, venue_id, role)
+  VALUES (auth.uid(), v_venue_id, 'editor');
+
+  RETURN json_build_object(
+    'success', true,
+    'venue_id', v_venue_id,
+    'venue_name', v_venue_name
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+### Usage from Client
+```typescript
+const { data, error } = await supabase.rpc('join_venue_by_code', {
+  code: 'XXXX-XXXX'
+})
+
+if (data?.error) {
+  // Handle error: 'Invalid invite code' or 'Already a member'
+} else if (data?.success) {
+  // Redirect to venue: data.venue_id, data.venue_name
+}
+```
+
+### Security Notes
+- Function is `SECURITY DEFINER` to bypass RLS for self-insert
+- Codes are uppercase-normalized to avoid case confusion
+- ~4.3 billion possible combinations (16^8)
+- Users can only join as `editor` (not owner/admin)
+
 ## 12. Migration Path
 
 ### From Google Sheets to Supabase

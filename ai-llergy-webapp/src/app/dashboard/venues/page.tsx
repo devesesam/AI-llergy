@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import JoinVenueForm from '@/components/dashboard/JoinVenueForm'
+import VenueActions from '@/components/dashboard/VenueActions'
 
 interface VenueMembership {
   venue_id: string
@@ -45,16 +47,20 @@ export default async function VenuesPage() {
       <div className="dashboard-section">
         <div className="dashboard-section__header">
           <h2>All Venues</h2>
-          <Link href="/dashboard/venues/new" className="btn primary-btn" style={{ padding: '10px 20px' }}>
-            + New Venue
-          </Link>
+          <VenueActions />
         </div>
 
         {venues.length === 0 ? (
           <div className="dashboard-empty">
             <p>You don&apos;t have any venues yet.</p>
-            <p>Create your first venue to start managing allergen-aware menus.</p>
-            <Link href="/dashboard/venues/new" className="btn primary-btn" style={{ marginTop: 'var(--spacing-md)' }}>
+
+            <JoinVenueForm />
+
+            <div className="dashboard-empty__divider">
+              <span>or</span>
+            </div>
+
+            <Link href="/dashboard/venues/new" className="btn primary-btn">
               Create Your First Venue
             </Link>
           </div>

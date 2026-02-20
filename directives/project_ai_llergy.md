@@ -77,6 +77,75 @@
 
 ## 4. Change Log & Issues
 
+### v4.4 - Venue Invite Codes & Team Membership (2026-02-20)
+
+**Major Feature**: Venue owners can now invite team members using shareable invite codes. Each venue gets a unique 8-character code auto-generated on creation.
+
+*   **Problem Solved**: New users who should belong to an existing venue had no way to join it. They could only create new venues, not join existing teams. Now team members can join by entering the venue's invite code.
+
+*   **Feature 1: Auto-Generated Invite Codes**
+    *   Format: `XXXX-XXXX` (8 uppercase hex characters)
+    *   Generated automatically when venue is created via database trigger
+    *   Stored in `venues.invite_code` column
+    *   Unique and permanent per venue
+    *   **Migration**: `supabase/migrations/20260220_add_venue_invite_codes.sql`
+
+*   **Feature 2: Invite Code Display in Sidebar**
+    *   Shows below each venue name in dashboard sidebar
+    *   One-click copy button with "Copied!" feedback
+    *   Visible to all venue members (so anyone can share it)
+    *   **Files Modified**: `DashboardNav.tsx`, `dashboard/layout.tsx`
+
+*   **Feature 3: Join Venue Form**
+    *   "Join with Code" button in venues page header
+    *   Reveals compact inline form when clicked
+    *   Validates code and adds user as `editor` role
+    *   Shows prominently for users with no venues
+    *   **Files Added**: `JoinVenueForm.tsx`, `VenueActions.tsx`
+
+*   **Feature 4: Secure Join via RPC**
+    *   `join_venue_by_code(code TEXT)` PostgreSQL function
+    *   `SECURITY DEFINER` to bypass RLS for self-join
+    *   Returns venue info on success, error message on failure
+    *   Prevents duplicate membership
+    *   **Files Added**: `supabase/migrations/20260220_add_venue_invite_codes.sql`
+
+*   **Database Changes**:
+    *   Added `invite_code` column to `venues` table (UNIQUE, NOT NULL)
+    *   Modified `handle_new_venue()` trigger to generate code on insert
+    *   Added `join_venue_by_code()` RPC function
+    *   Added index on `invite_code` for lookup performance
+
+*   **CSS Classes Added**:
+    *   `.venue-invite-code`, `.venue-invite-code__label`, `.venue-invite-code__code`, `.venue-invite-code__copy`
+    *   `.venue-actions`, `.venue-actions__buttons`, `.venue-actions__join-form`
+    *   `.join-venue-form`, `.join-venue-form__*` variants
+
+*   **Multi-Venue Support**:
+    *   Users can join multiple venues (already supported in DB)
+    *   "Join with Code" available even when user has existing venues
+    *   Sidebar lists all venues user belongs to
+
+*   **Feature 5: Other Allergens Dropdown (UI Consistency)**
+    *   Converted "Other Allergens" section from static grid to collapsible dropdown accordion
+    *   Now matches the style of named allergen groups (Nuts, Seafood, Aromatics, Spicy)
+    *   Click "🍽️ Other" header to expand and see 9 allergens (eggs, dairy, gluten, etc.)
+    *   Selection count badge shows selected items (e.g., "2/9")
+    *   Reduces visual clutter on initial page load
+    *   **Implementation**: Inline `AllergenGroup` component using `STANDALONE_ALLERGENS.map(a => a.id)` for members
+    *   **Files Modified**: `AllergenGrid.tsx` only (reuses existing `AllergenGroup` component)
+    *   **No Data Model Changes**: `allergens.ts` unchanged - "Other" group computed dynamically
+
+*   **Related Directives**:
+    *   See `directives/dashboard_admin.md` §14 for team membership docs
+    *   See `directives/supabase_integration.md` §13 for migration details
+    *   See `directives/allergen_management.md` §5 for allergen group documentation
+    *   See `directives/known_issues_and_fixes.md` FEATURE-002 for implementation details
+
+*   **Status**: **Live** (Local). Run migration in Supabase SQL Editor.
+
+---
+
 ### v4.3 - UI Polish & Severity Slider (2026-02-19)
 
 **UI Improvements**: Several small but impactful UX enhancements to the severity modal, loading states, results display, and responsive layout.
@@ -883,9 +952,10 @@
 *   [x] ~~Add menu item CRUD with allergen toggles~~ (Done in v4.0)
 *   [x] ~~Add CSV import tool for bulk menu upload~~ (Done in v4.0)
 *   [x] ~~Add public venue pages at /v/[slug]~~ (Done in v4.0)
+*   [x] ~~Convert "Other Allergens" grid to dropdown accordion for UI consistency~~ (Done in v4.4)
 *   [ ] Generate Supabase types with CLI for proper TypeScript support
 *   [ ] Add user profile page with password change
-*   [ ] Add team member invites to venues
+*   [x] ~~Add team member invites to venues~~ (Done in v4.4 via invite codes)
 *   [ ] Add venue branding/logo upload
 *   [ ] Add menu categories/sections
 *   [ ] Add drag-and-drop menu item reordering
