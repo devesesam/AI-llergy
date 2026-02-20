@@ -1057,3 +1057,40 @@ When fixing a bug:
 2. Update the changelog in `directives/project_ai_llergy.md`
 3. Update relevant directives with lessons learned
 4. Add a test case to prevent regression
+
+---
+
+### BUG-007: Supabase RPC TypeScript Error "Argument not assignable to undefined"
+
+| Field | Value |
+|-------|-------|
+| **Reported** | 2026-02-20 |
+| **Status** | Fixed (v4.4.1) |
+| **Severity** | High (Build Failure) |
+
+**Summary**: The `join_venue_by_code` RPC function call failed TypeScript compilation because the Supabase client inferred its arguments as `undefined`.
+
+**Symptoms**:
+- Netlify build fails with: `Type error: Argument of type '{ code: string; }' is not assignable to parameter of type 'undefined'.`
+- Occurs in `src/components/dashboard/JoinVenueForm.tsx`
+
+**Root Cause**:
+- The manual `Database` type definition in `src/lib/supabase/types.ts` had an empty `Functions` interface: `[_ in never]: never`.
+- As a result, the Supabase client typed all RPC functions as accepting no arguments (or `undefined`).
+
+**Fix**:
+- Manually added the function signature to `src/lib/supabase/types.ts`:
+  ```typescript
+  Functions: {
+    join_venue_by_code: {
+      Args: { code: string }
+      Returns: { ... }
+    }
+  }
+  ```
+- This allows the `supabase.rpc()` call to correctly infer that `code` is a valid argument.
+
+**Prevention**:
+- Always update `types.ts` when adding new RPC functions.
+- Prefer using Supabase CLI to generate types automatically to avoid sync issues.
+

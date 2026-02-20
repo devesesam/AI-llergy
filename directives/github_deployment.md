@@ -31,11 +31,12 @@ cd ai-llergy-webapp
 ```
 
 ### Step 2: Verify Remote
-Ensure you are pushing to the correct repository:
+**CRITICAL**: Ensure you are pushing to the correct repository. The result of `git remote -v` MUST match `ai-llergy-webapp`.
 ```powershell
 git remote -v
 # Should show: https://github.com/devesesam/ai-llergy-webapp.git
 ```
+**IF IT SHOWS** `AI-llergy.git` (the root repo), YOU ARE IN THE WRONG DIRECTORY. `cd ai-llergy-webapp` immediately.
 
 ### Step 3: Stage and Commit
 ```powershell
