@@ -150,7 +150,15 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      join_venue_by_code: {
+        Args: { code: string }
+        Returns: {
+          success?: boolean
+          error?: string
+          venue_id?: string
+          venue_name?: string
+        }
+      }
     }
     Enums: {
       [_ in never]: never
