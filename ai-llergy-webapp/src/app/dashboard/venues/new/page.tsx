@@ -5,6 +5,13 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
+interface CreateVenueResponse {
+  success?: boolean
+  error?: string
+  venue_id?: string
+  invite_code?: string
+}
+
 function generateSlug(name: string): string {
   return name
     .toLowerCase()
@@ -40,32 +47,26 @@ export default function NewVenuePage() {
     setError(null)
 
     try {
-      // Check if slug is unique
-      const { data: existing } = await supabase
-        .from('venues')
-        .select('id')
-        .eq('slug', slug)
-        .maybeSingle()
+      // Use RPC function for atomic venue creation
+      // The RPC handles: slug validation, user profile creation, venue creation, owner assignment
+      const { data, error: rpcError } = await supabase.rpc('create_venue', {
+        venue_name: name,
+        venue_slug: slug
+      } as never) as { data: CreateVenueResponse | null; error: Error | null }
 
-      if (existing) {
-        setError('This URL slug is already taken. Please choose a different one.')
-        setLoading(false)
+      if (rpcError) {
+        throw rpcError
+      }
+
+      if (data?.error) {
+        setError(data.error)
         return
       }
 
-      // Create the venue
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: venue, error: createError } = await (supabase as any)
-        .from('venues')
-        .insert({ name, slug })
-        .select()
-        .single()
-
-      if (createError) throw createError
-
-      // The trigger will automatically add the creator as owner
-      router.push(`/dashboard/venues/${venue?.id}`)
-      router.refresh()
+      if (data?.success && data.venue_id) {
+        router.push(`/dashboard/venues/${data.venue_id}`)
+        router.refresh()
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create venue')
     } finally {

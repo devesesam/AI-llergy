@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
+import { LayoutDashboard, Building2, LogOut, type LucideIcon } from 'lucide-react'
 
 interface Venue {
   id: string
@@ -38,9 +39,9 @@ export default function DashboardNav({ user, venues }: DashboardNavProps) {
     router.refresh()
   }
 
-  const navItems = [
-    { href: '/dashboard', label: 'Overview', icon: '📊' },
-    { href: '/dashboard/venues', label: 'Venues', icon: '🏢' },
+  const navItems: { href: string; label: string; icon: LucideIcon }[] = [
+    { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
+    { href: '/dashboard/venues', label: 'Venues', icon: Building2 },
   ]
 
   // Check if we are in a venue context
@@ -79,7 +80,7 @@ export default function DashboardNav({ user, venues }: DashboardNavProps) {
                 className={`dashboard-sidebar__link ${pathname === item.href ? 'dashboard-sidebar__link--active' : ''}`}
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <span className="dashboard-sidebar__link-icon">{item.icon}</span>
+                <item.icon className="w-5 h-5" />
                 <span>{item.label}</span>
               </Link>
             ))}
@@ -127,7 +128,7 @@ export default function DashboardNav({ user, venues }: DashboardNavProps) {
             onClick={handleSignOut}
             className="dashboard-sidebar__signout"
           >
-            <span>🚪</span>
+            <LogOut className="w-5 h-5" />
             <span>Sign Out</span>
           </button>
         </div>

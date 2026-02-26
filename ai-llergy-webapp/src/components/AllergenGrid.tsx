@@ -70,13 +70,6 @@ export default function AllergenGrid({
               onAllergenClick={onAllergenClick}
             />
           ))}
-        </div>
-      </div>
-
-      {/* Other Allergens (Standalone) */}
-      <div className="allergen-grid__section">
-        <h3 className="allergen-grid__section-title">Other Allergens</h3>
-        <div className="allergen-grid__groups">
           <AllergenGroup
             group={{
               id: "other",

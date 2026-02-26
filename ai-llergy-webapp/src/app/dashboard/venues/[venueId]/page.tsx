@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 import type { Venue, MenuItem } from '@/lib/supabase/types'
 import VenueTabs from '@/components/dashboard/VenueTabs'
 
@@ -36,11 +37,12 @@ export default async function VenueDetailPage({ params }: PageProps) {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
-      <Link href="/dashboard/venues" className="inline-block mb-6 text-white/50 hover:text-white transition-colors text-sm">
-        &larr; Back to Venues
+      <Link href="/dashboard/venues" className="inline-flex items-center gap-2 mb-6 text-gray-500 hover:text-gray-900 transition-colors text-sm font-medium">
+        <ArrowLeft className="w-4 h-4" />
+        Back to Venues
       </Link>
 
-      <VenueTabs venueId={venue.id} venueName={venue.name} menuItems={items} />
+      <VenueTabs venueId={venue.id} venueName={venue.name} venueSlug={venue.slug} menuItems={items} />
     </div>
   )
 }

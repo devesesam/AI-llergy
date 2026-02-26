@@ -159,6 +159,15 @@ export interface Database {
           venue_name?: string
         }
       }
+      create_venue: {
+        Args: { venue_name: string; venue_slug: string }
+        Returns: {
+          success?: boolean
+          error?: string
+          venue_id?: string
+          invite_code?: string
+        }
+      }
     }
     Enums: {
       [_ in never]: never

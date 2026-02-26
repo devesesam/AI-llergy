@@ -129,11 +129,11 @@ CREATE POLICY "Owners can delete venues" ON venues
 -- POLICIES: venue_members
 -- ============================================
 
--- Users can view memberships for their venues
+-- Users can view their own venue memberships
+-- NOTE: Avoid self-referential subqueries - causes infinite recursion (error 42P17)
+-- See directives/supabase-rls-policies.md for details
 CREATE POLICY "Users can view venue memberships" ON venue_members
-  FOR SELECT USING (
-    venue_id IN (SELECT venue_id FROM venue_members WHERE user_id = auth.uid())
-  );
+  FOR SELECT USING (user_id = auth.uid());
 
 -- Owners and admins can add members
 CREATE POLICY "Owners and admins can add members" ON venue_members
@@ -285,6 +285,64 @@ DROP TRIGGER IF EXISTS on_venue_created_add_owner ON venues;
 CREATE TRIGGER on_venue_created_add_owner
   AFTER INSERT ON venues
   FOR EACH ROW EXECUTE FUNCTION public.add_venue_owner();
+
+-- Function to create venue with automatic ownership (atomic operation)
+CREATE OR REPLACE FUNCTION public.create_venue(
+  venue_name TEXT,
+  venue_slug TEXT
+)
+RETURNS JSON AS $$
+DECLARE
+  v_user_id UUID;
+  v_user_email TEXT;
+  v_venue_id UUID;
+  v_invite_code TEXT;
+  v_profile_exists BOOLEAN;
+BEGIN
+  v_user_id := auth.uid();
+
+  IF v_user_id IS NULL THEN
+    RETURN json_build_object('error', 'You must be logged in to create a venue');
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM venues WHERE slug = venue_slug) THEN
+    RETURN json_build_object('error', 'This URL slug is already taken.');
+  END IF;
+
+  -- Ensure user profile exists (handle edge case of missing profile)
+  SELECT EXISTS (SELECT 1 FROM user_profiles WHERE id = v_user_id) INTO v_profile_exists;
+
+  IF NOT v_profile_exists THEN
+    SELECT email INTO v_user_email FROM auth.users WHERE id = v_user_id;
+    INSERT INTO user_profiles (id, email, full_name)
+    VALUES (v_user_id, v_user_email, '');
+  END IF;
+
+  -- Generate invite code
+  v_invite_code := UPPER(
+    SUBSTRING(md5(random()::text) FROM 1 FOR 4) || '-' ||
+    SUBSTRING(md5(random()::text) FROM 1 FOR 4)
+  );
+
+  -- Create venue
+  INSERT INTO venues (name, slug, invite_code)
+  VALUES (venue_name, venue_slug, v_invite_code)
+  RETURNING id INTO v_venue_id;
+
+  -- Add user as owner
+  INSERT INTO venue_members (user_id, venue_id, role)
+  VALUES (v_user_id, v_venue_id, 'owner');
+
+  RETURN json_build_object(
+    'success', true,
+    'venue_id', v_venue_id,
+    'invite_code', v_invite_code
+  );
+
+EXCEPTION WHEN OTHERS THEN
+  RETURN json_build_object('error', SQLERRM);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to join venue by invite code (v4.4)
 CREATE OR REPLACE FUNCTION public.join_venue_by_code(code TEXT)

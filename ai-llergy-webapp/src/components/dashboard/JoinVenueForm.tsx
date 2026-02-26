@@ -8,6 +8,13 @@ interface JoinVenueFormProps {
   compact?: boolean
 }
 
+interface JoinVenueResponse {
+  success?: boolean
+  error?: string
+  venue_id?: string
+  venue_name?: string
+}
+
 export default function JoinVenueForm({ compact = false }: JoinVenueFormProps) {
   const [inviteCode, setInviteCode] = useState('')
   const [loading, setLoading] = useState(false)
@@ -32,7 +39,7 @@ export default function JoinVenueForm({ compact = false }: JoinVenueFormProps) {
     try {
       const { data, error: rpcError } = await supabase.rpc('join_venue_by_code', {
         code: inviteCode.trim().toUpperCase()
-      })
+      } as never) as { data: JoinVenueResponse | null; error: Error | null }
 
       if (rpcError) {
         throw rpcError
