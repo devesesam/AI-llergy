@@ -4,31 +4,94 @@ import { useState, useEffect, useCallback } from 'react'
 import { Save, Plus, Trash2, UtensilsCrossed, Loader2 } from 'lucide-react'
 import { ALL_FILTERS } from '@/lib/allergens'
 
+// Map allergen IDs to allergen_profile keys (e.g., "dairy" -> "dairy_free")
+const allergenIdToProfileKey = (id: string): string => {
+    // Special cases
+    if (id === 'treenuts') return 'tree_nut_free'
+    if (id === 'peanuts') return 'peanut_free'
+    // Default: add _free suffix
+    return `${id}_free`
+}
+
+// Map allergen_profile keys to allergen IDs (e.g., "dairy_free" -> "dairy")
+const profileKeyToAllergenId = (key: string): string | null => {
+    if (!key.endsWith('_free')) return null
+    const base = key.replace(/_free$/, '')
+    // Special cases
+    if (base === 'tree_nut') return 'treenuts'
+    if (base === 'peanut') return 'peanuts'
+    return base
+}
+
+// Convert allergen_profile object to array of allergen IDs
+const profileToArray = (profile: Record<string, boolean> | null | undefined): string[] => {
+    if (!profile || typeof profile !== 'object') return []
+    return Object.entries(profile)
+        .filter(([_, value]) => value === true)
+        .map(([key]) => profileKeyToAllergenId(key))
+        .filter((id): id is string => id !== null)
+}
+
+// Convert array of allergen IDs to allergen_profile object
+const arrayToProfile = (allergenIds: string[]): Record<string, boolean> => {
+    const profile: Record<string, boolean> = {}
+    // Initialize all as false
+    ALL_FILTERS.forEach(allergen => {
+        profile[allergenIdToProfileKey(allergen.id)] = false
+    })
+    // Set selected ones to true
+    allergenIds.forEach(id => {
+        profile[allergenIdToProfileKey(id)] = true
+    })
+    return profile
+}
+
+interface MenuItemDB {
+    id: string
+    name: string
+    ingredients: string | null
+    allergen_profile: Record<string, boolean> | null
+    price: number | null
+    is_active: boolean
+}
+
 interface MenuItem {
     id: string
     name: string
     ingredients: string | null
-    allergens: string[] | null
+    allergens: string[]  // Converted from allergen_profile for UI
     price: number | null
     is_active: boolean
-    isNew?: boolean  // Track if this is a new unsaved row
+    isNew?: boolean
 }
 
 interface MenuTableProps {
     venueId: string
-    menuItems: MenuItem[]
+    menuItems: MenuItemDB[]
 }
 
 export default function MenuTable({ venueId, menuItems }: MenuTableProps) {
-    const [items, setItems] = useState<MenuItem[]>(menuItems)
-    const [originalItems, setOriginalItems] = useState<MenuItem[]>(menuItems)
+    // Convert DB format to UI format
+    const convertFromDB = (dbItems: MenuItemDB[]): MenuItem[] => {
+        return dbItems.map(item => ({
+            id: item.id,
+            name: item.name,
+            ingredients: item.ingredients,
+            allergens: profileToArray(item.allergen_profile),
+            price: item.price,
+            is_active: item.is_active,
+        }))
+    }
+
+    const [items, setItems] = useState<MenuItem[]>(() => convertFromDB(menuItems))
+    const [originalItems, setOriginalItems] = useState<MenuItem[]>(() => convertFromDB(menuItems))
     const [isSaving, setIsSaving] = useState(false)
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
     // Check if there are unsaved changes
     const hasChanges = useCallback(() => {
         if (items.length !== originalItems.length) return true
-        return items.some((item, index) => {
+        return items.some((item) => {
             const original = originalItems.find(o => o.id === item.id)
             if (!original) return true // New item
             if (item.name !== original.name) return true
@@ -101,10 +164,21 @@ export default function MenuTable({ venueId, menuItems }: MenuTableProps) {
         setMessage(null)
 
         try {
+            // Convert UI format back to DB format
+            const dbItems = items.map(item => ({
+                id: item.id,
+                name: item.name,
+                ingredients: item.ingredients,
+                allergen_profile: arrayToProfile(item.allergens),
+                price: item.price,
+                is_active: item.is_active,
+                isNew: item.isNew,
+            }))
+
             const response = await fetch(`/api/venues/${venueId}/menu`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ items }),
+                body: JSON.stringify({ items: dbItems }),
             })
 
             if (!response.ok) {
@@ -113,9 +187,10 @@ export default function MenuTable({ venueId, menuItems }: MenuTableProps) {
             }
 
             const data = await response.json()
-            // Update items with server-assigned IDs for new items
-            setItems(data.items)
-            setOriginalItems(data.items)
+            // Convert response back to UI format
+            const savedItems = convertFromDB(data.items)
+            setItems(savedItems)
+            setOriginalItems(savedItems)
             setMessage({ type: 'success', text: 'Menu saved successfully!' })
 
             // Clear message after 3 seconds

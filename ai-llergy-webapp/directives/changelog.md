@@ -180,6 +180,28 @@ This directive tracks significant changes, fixes, and improvements to the AI-lle
 - Deletes items removed from the list
 - Returns all items with server-assigned IDs
 
+### Allergen Data Format Fix
+
+**Problem:** Allergens showing "None listed" even though data existed in Supabase.
+
+**Root Cause:** Data format mismatch:
+- **Database stores**: `allergen_profile: {dairy_free: true, gluten_free: false, ...}` (JSONB object)
+- **Component expected**: `allergens: ["dairy", "gluten", ...]` (array of IDs)
+
+**Solution:** Added conversion utilities in MenuTable:
+- `allergenIdToProfileKey()` - Maps "dairy" → "dairy_free"
+- `profileKeyToAllergenId()` - Maps "dairy_free" → "dairy"
+- `profileToArray()` - Converts JSONB object to array for UI
+- `arrayToProfile()` - Converts array back to JSONB for saving
+
+**Key mapping rules:**
+| Allergen ID | Profile Key |
+|-------------|-------------|
+| `dairy` | `dairy_free` |
+| `gluten` | `gluten_free` |
+| `peanuts` | `peanut_free` |
+| `treenuts` | `tree_nut_free` |
+
 ---
 
 ## Known TODOs

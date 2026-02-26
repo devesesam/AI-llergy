@@ -10,7 +10,7 @@ interface MenuItemInput {
   id: string
   name: string
   ingredients: string | null
-  allergens: string[] | null
+  allergen_profile: Record<string, boolean> | null
   price: number | null
   is_active: boolean
   isNew?: boolean
@@ -79,7 +79,7 @@ export async function PUT(request: Request, context: RouteContext) {
   }
 
   const existingIds = new Set(existingItems?.map(item => item.id) || [])
-  const incomingIds = new Set(items.filter(item => !item.isNew).map(item => item.id))
+  const incomingIds = new Set(items.filter(item => !item.isNew && !item.id.startsWith('new_')).map(item => item.id))
 
   // Find items to delete (exist in DB but not in incoming)
   const idsToDelete = [...existingIds].filter(id => !incomingIds.has(id))
@@ -101,28 +101,24 @@ export async function PUT(request: Request, context: RouteContext) {
   const updateItems = items.filter(item => !item.isNew && !item.id.startsWith('new_') && existingIds.has(item.id))
 
   // Insert new items
-  const insertedItems: MenuItemInput[] = []
   if (newItems.length > 0) {
-    const { data: inserted, error: insertError } = await supabase
+    const { error: insertError } = await supabase
       .from('menu_items')
       .insert(
         newItems.map((item, index) => ({
           venue_id: venueId,
           name: item.name || 'Untitled',
           ingredients: item.ingredients,
-          allergens: item.allergens || [],
+          allergen_profile: item.allergen_profile || {},
           price: item.price,
           is_active: item.is_active ?? true,
           sort_order: existingItems ? existingItems.length + index : index,
         }))
       )
-      .select()
 
     if (insertError) {
       return NextResponse.json({ error: 'Failed to insert new items' }, { status: 500 })
     }
-
-    insertedItems.push(...(inserted || []))
   }
 
   // Update existing items
@@ -132,9 +128,10 @@ export async function PUT(request: Request, context: RouteContext) {
       .update({
         name: item.name || 'Untitled',
         ingredients: item.ingredients,
-        allergens: item.allergens || [],
+        allergen_profile: item.allergen_profile || {},
         price: item.price,
         is_active: item.is_active ?? true,
+        updated_at: new Date().toISOString(),
       })
       .eq('id', item.id)
       .eq('venue_id', venueId)
@@ -147,7 +144,7 @@ export async function PUT(request: Request, context: RouteContext) {
   // Fetch all current items to return
   const { data: finalItems, error: finalError } = await supabase
     .from('menu_items')
-    .select('*')
+    .select('id, name, ingredients, allergen_profile, price, is_active')
     .eq('venue_id', venueId)
     .order('sort_order', { ascending: true })
 
