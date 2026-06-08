@@ -1,13 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import type { Venue } from '@/lib/supabase/types'
-import VenueSettings from '@/components/dashboard/VenueSettings'
+import { PublicPagePanel } from '@/components/dashboard/PublicPagePanel'
 
 interface PageProps {
   params: Promise<{ venueId: string }>
 }
 
-export default async function VenueSettingsPage({ params }: PageProps) {
+export default async function VenuePublicPage({ params }: PageProps) {
   const { venueId } = await params
   const supabase = await createClient()
 
@@ -21,12 +21,5 @@ export default async function VenueSettingsPage({ params }: PageProps) {
     notFound()
   }
 
-  return (
-    <VenueSettings
-      venueId={venue.id}
-      venueName={venue.name}
-      venueSlug={venue.slug}
-      inviteCode={venue.invite_code}
-    />
-  )
+  return <PublicPagePanel slug={venue.slug} />
 }

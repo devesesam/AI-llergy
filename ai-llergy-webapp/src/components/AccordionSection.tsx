@@ -5,7 +5,7 @@ import { useState } from "react";
 interface AccordionSectionProps {
   title: string;
   count: number;
-  variant: "safe" | "caution";
+  variant: "safe" | "caution" | "modified";
   defaultOpen?: boolean;
   children: React.ReactNode;
 }

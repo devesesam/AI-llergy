@@ -3,8 +3,9 @@
  * Fetches from Google Sheets and caches for performance
  */
 
-import { fetchMenuFromSheets, RawMenuItem } from "./google-sheets";
+import { fetchMenuFromSheets, fetchSubstitutionsFromSheets, RawMenuItem } from "./google-sheets";
 import { ALL_FILTERS } from "./allergens";
+import { Substitution, parseSubstitutionRow, normalizeDishName } from "./substitutions";
 
 export interface MenuItem {
   name: string;
@@ -114,6 +115,43 @@ export async function refreshMenu(): Promise<MenuItem[]> {
   cacheTimestamp = 0;
   availableColumns = new Set();
   return getMenu();
+}
+
+// --- Substitutions ("Can be modified" data) ---
+
+// Map of normalized dish name -> list of substitutions for that dish
+let substitutionCache: Map<string, Substitution[]> | null = null;
+let substitutionCacheTimestamp = 0;
+
+/**
+ * Get chef-provided substitutions, keyed by normalized dish name.
+ * Cached for the same TTL as the menu. Returns an empty map when the
+ * Substitutions tab is not configured or empty (feature dormant).
+ */
+export async function getSubstitutions(): Promise<Map<string, Substitution[]>> {
+  if (substitutionCache && Date.now() - substitutionCacheTimestamp < CACHE_TTL_MS) {
+    return substitutionCache;
+  }
+
+  const rawRows = await fetchSubstitutionsFromSheets();
+  const map = new Map<string, Substitution[]>();
+
+  for (const row of rawRows) {
+    const sub = parseSubstitutionRow(row);
+    if (!sub) continue;
+    const key = normalizeDishName(sub.dish);
+    const existing = map.get(key);
+    if (existing) {
+      existing.push(sub);
+    } else {
+      map.set(key, [sub]);
+    }
+  }
+
+  substitutionCache = map;
+  substitutionCacheTimestamp = Date.now();
+  console.log(`[menu-service] Loaded substitutions for ${map.size} dish(es)`);
+  return map;
 }
 
 /**

@@ -12,17 +12,20 @@ import {
   AllergenWithSeverity,
   getFilterCategory,
 } from "./confidence";
+import { Substitution, findViableModifications, normalizeDishName } from "./substitutions";
 
 export interface FilteredItem {
   item: MenuItem;
   safe: boolean;
   warnings: string[]; // Allergens marked as "CAN BE"
   excluded: string[]; // Allergens that caused exclusion (for debugging)
+  modifications?: string[]; // Chef-provided swaps/removals that make this dish safe
 }
 
 export interface FilterResult {
   safeItems: FilteredItem[];
   cautionItems: FilteredItem[]; // Items with "CAN BE" warnings
+  modifiableItems: FilteredItem[]; // Excluded items rescued by chef substitutions
   excludedCount: number;
 }
 
@@ -38,18 +41,29 @@ export interface FilterResult {
  * @param selectedAllergens - Array of allergen IDs the user selected
  * @returns Filtered results with safe items, caution items, and excluded count
  */
-export function filterMenu(menu: MenuItem[], selectedAllergens: string[]): FilterResult {
+export function filterMenu(
+  menu: MenuItem[],
+  selectedAllergens: string[],
+  substitutionsByDish?: Map<string, Substitution[]>,
+  allSelectedAllergens?: string[]
+): FilterResult {
   if (selectedAllergens.length === 0) {
     // No filters selected - return all items as safe
     return {
       safeItems: menu.map((item) => ({ item, safe: true, warnings: [], excluded: [] })),
       cautionItems: [],
+      modifiableItems: [],
       excludedCount: 0,
     };
   }
 
+  // Full selection drives the "introduces" conflict guard; defaults to the set
+  // being filtered here when not provided by the caller.
+  const fullSelection = allSelectedAllergens ?? selectedAllergens;
+
   const safeItems: FilteredItem[] = [];
   const cautionItems: FilteredItem[] = [];
+  const modifiableItems: FilteredItem[] = [];
   let excludedCount = 0;
 
   for (const item of menu) {
@@ -81,7 +95,17 @@ export function filterMenu(menu: MenuItem[], selectedAllergens: string[]): Filte
     }
 
     if (isExcluded) {
-      excludedCount++;
+      // Attempt to rescue an excluded dish via chef-provided substitutions.
+      const dishSubs = substitutionsByDish?.get(normalizeDishName(item.name));
+      const modifications = dishSubs
+        ? findViableModifications(dishSubs, excluded, fullSelection)
+        : null;
+
+      if (modifications) {
+        modifiableItems.push({ item, safe: false, warnings, excluded, modifications });
+      } else {
+        excludedCount++;
+      }
     } else if (warnings.length > 0) {
       cautionItems.push({ item, safe: false, warnings, excluded });
     } else {
@@ -89,7 +113,7 @@ export function filterMenu(menu: MenuItem[], selectedAllergens: string[]): Filte
     }
   }
 
-  return { safeItems, cautionItems, excludedCount };
+  return { safeItems, cautionItems, modifiableItems, excludedCount };
 }
 
 /**
@@ -153,6 +177,7 @@ export function filterMenuWithConfidence(
     return {
       safeItems: menu.map((item) => ({ item, safe: true, warnings: [], excluded: [] })),
       cautionItems: [],
+      modifiableItems: [],
       excludedCount: 0,
     };
   }
@@ -194,7 +219,7 @@ export function filterMenuWithConfidence(
     }
   }
 
-  return { safeItems, cautionItems, excludedCount };
+  return { safeItems, cautionItems, modifiableItems: [], excludedCount };
 }
 
 /**

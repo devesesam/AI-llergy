@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { Field, Input, Button, useToast } from '@/components/ui'
 
 interface ProfileFormProps {
   userId: string
@@ -13,8 +14,7 @@ interface ProfileFormProps {
 export default function ProfileForm({ userId, email, fullName: initialFullName }: ProfileFormProps) {
   const [fullName, setFullName] = useState(initialFullName)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
+  const toast = useToast()
 
   const router = useRouter()
   const supabase = createClient()
@@ -22,8 +22,6 @@ export default function ProfileForm({ userId, email, fullName: initialFullName }
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setError(null)
-    setSuccess(false)
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -34,85 +32,34 @@ export default function ProfileForm({ userId, email, fullName: initialFullName }
 
       if (updateError) throw updateError
 
-      setSuccess(true)
+      toast.success('Profile updated')
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update profile')
+      toast.error(err instanceof Error ? err.message : 'Failed to update profile')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="dashboard-form">
-      <div className="dashboard-form__group">
-        <label htmlFor="email" className="dashboard-form__label">
-          Email
-        </label>
-        <input
-          type="email"
-          id="email"
-          className="dashboard-form__input"
-          value={email}
-          disabled
-          style={{ opacity: 0.6 }}
-        />
-        <p className="dashboard-form__help">
-          Email cannot be changed
-        </p>
-      </div>
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <Field label="Email" help="Email cannot be changed">
+        <Input type="email" value={email} disabled />
+      </Field>
 
-      <div className="dashboard-form__group">
-        <label htmlFor="fullName" className="dashboard-form__label">
-          Full Name
-        </label>
-        <input
-          type="text"
-          id="fullName"
-          className="dashboard-form__input"
+      <Field label="Full name">
+        <Input
           placeholder="Your name"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
           disabled={loading}
         />
-      </div>
+      </Field>
 
-      {error && (
-        <div style={{
-          padding: 'var(--spacing-sm)',
-          background: 'rgba(220, 38, 38, 0.1)',
-          border: '1px solid var(--color-severity-critical)',
-          borderRadius: 'var(--radius-sm)',
-          color: 'var(--color-severity-critical)',
-          fontSize: '0.9rem',
-          marginBottom: 'var(--spacing-md)'
-        }}>
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div style={{
-          padding: 'var(--spacing-sm)',
-          background: 'rgba(34, 197, 94, 0.1)',
-          border: '1px solid var(--color-severity-preference)',
-          borderRadius: 'var(--radius-sm)',
-          color: '#16a34a',
-          fontSize: '0.9rem',
-          marginBottom: 'var(--spacing-md)'
-        }}>
-          Profile updated successfully!
-        </div>
-      )}
-
-      <div className="dashboard-form__actions">
-        <button
-          type="submit"
-          className="btn primary-btn"
-          disabled={loading}
-        >
-          {loading ? 'Saving...' : 'Save Changes'}
-        </button>
+      <div className="flex justify-end pt-2">
+        <Button type="submit" loading={loading}>
+          Save changes
+        </Button>
       </div>
     </form>
   )

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { SelectedAllergen, CustomTag, SeverityType } from "@/lib/allergens";
 import { ALLERGEN_TO_COLUMN, getAllergenById } from "@/lib/allergens";
-import { getMenu, getCacheStatus, getAvailableColumns } from "@/lib/menu-service";
+import { getMenu, getCacheStatus, getAvailableColumns, getSubstitutions } from "@/lib/menu-service";
 import {
   filterMenu,
   filterMenuWithConfidence,
@@ -32,6 +32,12 @@ export interface MenuResponse {
     price: number;
     warnings: string[];
   }>;
+  modifiedItems: Array<{
+    name: string;
+    ingredients: string;
+    price: number;
+    modifications: string[];
+  }>;
   excludedCount: number;
   meta: {
     totalItems: number;
@@ -47,6 +53,16 @@ function formatItem(item: FilteredItem, useAIWarnings: boolean = false) {
     price: item.item.price,
     // AI warnings are already formatted strings; standard warnings need formatting
     warnings: useAIWarnings ? item.warnings : formatWarnings(item.warnings),
+  };
+}
+
+// Modifiable items carry pre-formatted, chef-derived instruction strings.
+function formatModifiedItem(item: FilteredItem) {
+  return {
+    name: item.item.name,
+    ingredients: item.item.ingredients,
+    price: item.item.price,
+    modifications: item.modifications ?? [],
   };
 }
 
@@ -90,6 +106,9 @@ export async function POST(request: NextRequest) {
     const menu = await getMenu();
     const cacheStatus = getCacheStatus();
 
+    // Get chef-provided substitutions (empty map if the feature isn't configured)
+    const substitutions = await getSubstitutions();
+
     // Get available columns to determine which allergens need AI filtering
     const availableColumns = getAvailableColumns();
 
@@ -125,23 +144,25 @@ export async function POST(request: NextRequest) {
     } else if (!needsAI) {
       // FAST PATH: All allergens have columns, use column-based filtering only
       // This is for Google Sheets venues
-      result = filterMenu(menu, columnAllergens);
+      result = filterMenu(menu, columnAllergens, substitutions, allAllergens);
     } else {
       // HYBRID PATH: Some allergens missing columns OR we have custom tags
 
       // Step 1: Column-based filtering FIRST (reduces item count)
       let reducedMenu = menu;
       let columnExcludedCount = 0;
+      let columnModifiable: FilteredItem[] = [];
 
       if (columnAllergens.length > 0) {
-        const columnResult = filterMenu(menu, columnAllergens);
+        const columnResult = filterMenu(menu, columnAllergens, substitutions, allAllergens);
         columnExcludedCount = columnResult.excludedCount;
+        columnModifiable = columnResult.modifiableItems;
         // Get items that passed column filtering (safe + caution)
         reducedMenu = [
           ...columnResult.safeItems.map(f => f.item),
           ...columnResult.cautionItems.map(f => f.item)
         ];
-        console.log(`[route] Column filtering: ${menu.length} → ${reducedMenu.length} items (excluded ${columnExcludedCount})`);
+        console.log(`[route] Column filtering: ${menu.length} → ${reducedMenu.length} items (excluded ${columnExcludedCount}, modifiable ${columnModifiable.length})`);
       }
 
       // Step 2: Build AI tags from missing-column allergens + custom tags
@@ -167,10 +188,12 @@ export async function POST(request: NextRequest) {
       // Step 3: AI filtering on the reduced list
       const aiResult = await filterMenuWithAI(reducedMenu, [], allAITags);
 
-      // Combine excluded counts
+      // Combine excluded counts. Modifiable items come from the column step;
+      // AI/custom-tag rescue is out of scope (see plan).
       result = {
         safeItems: aiResult.safeItems,
         cautionItems: aiResult.cautionItems,
+        modifiableItems: columnModifiable,
         excludedCount: columnExcludedCount + aiResult.excludedCount
       };
     }
@@ -179,6 +202,7 @@ export async function POST(request: NextRequest) {
       success: true,
       safeItems: result.safeItems.map(item => formatItem(item, needsAI)),
       cautionItems: result.cautionItems.map(item => formatItem(item, needsAI)),
+      modifiedItems: result.modifiableItems.map(formatModifiedItem),
       excludedCount: result.excludedCount,
       meta: {
         totalItems: menu.length,
@@ -199,6 +223,7 @@ export async function POST(request: NextRequest) {
       usedConfidenceFiltering: useConfidenceFiltering,
       safeCount: result.safeItems.length,
       cautionCount: result.cautionItems.length,
+      modifiableCount: result.modifiableItems.length,
       excludedCount: result.excludedCount,
     });
 

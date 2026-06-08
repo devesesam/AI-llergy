@@ -17,9 +17,17 @@ interface MenuItemData {
   warnings: string[];
 }
 
+interface ModifiedItemData {
+  name: string;
+  ingredients: string;
+  price: number;
+  modifications: string[];
+}
+
 interface ResultsData {
   safeItems: MenuItemData[];
   cautionItems: MenuItemData[];
+  modifiedItems: ModifiedItemData[];
   excludedCount: number;
 }
 
@@ -140,6 +148,7 @@ export default function Home() {
       setResults({
         safeItems: data.safeItems,
         cautionItems: data.cautionItems,
+        modifiedItems: data.modifiedItems ?? [],
         excludedCount: data.excludedCount,
       });
     } catch (error) {
@@ -183,6 +192,7 @@ export default function Home() {
           <MenuResults
             safeItems={results.safeItems}
             cautionItems={results.cautionItems}
+            modifiedItems={results.modifiedItems}
             excludedCount={results.excludedCount}
             selectedAllergens={selectedAllergens}
             customAllergenIds={customAllergenIds}

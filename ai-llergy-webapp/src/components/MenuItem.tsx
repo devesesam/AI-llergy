@@ -7,6 +7,7 @@ interface MenuItemProps {
   price: number;
   ingredients: string;
   warning?: string;
+  modifications?: string[];
 }
 
 export default function MenuItem({
@@ -14,11 +15,17 @@ export default function MenuItem({
   price,
   ingredients,
   warning,
+  modifications,
 }: MenuItemProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const hasModifications = !!modifications && modifications.length > 0;
 
   return (
-    <div className={`menu-item ${warning ? "menu-item--caution" : ""}`}>
+    <div
+      className={`menu-item ${warning ? "menu-item--caution" : ""} ${
+        hasModifications ? "menu-item--modified" : ""
+      }`}
+    >
       <div className="menu-item__header">
         <h4 className="menu-item__name">{name}</h4>
         <div className="menu-item__header-right">
@@ -45,6 +52,19 @@ export default function MenuItem({
           <span className="menu-item__warning-icon">!</span>
           {warning}
         </p>
+      )}
+      {hasModifications && (
+        <div className="menu-item__substitutions">
+          <p className="menu-item__substitutions-title">
+            <span className="menu-item__substitutions-icon">↔</span>
+            How to make this work for you
+          </p>
+          <ul className="menu-item__substitutions-list">
+            {modifications!.map((mod, i) => (
+              <li key={i}>{mod}</li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

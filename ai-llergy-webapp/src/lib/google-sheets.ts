@@ -6,6 +6,10 @@
 const SHEET_ID = process.env.GOOGLE_SHEET_ID || "1HNWCErJzCBRfy-oPOqPgg1UYYbhOkD5tuVrLWevryeU";
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
 
+// gid (tab id) of the "Substitutions" tab within the same spreadsheet.
+// When unset, the substitutions feature is dormant and fetchSubstitutionsFromSheets() returns [].
+const SUBSTITUTIONS_GID = process.env.GOOGLE_SUBSTITUTIONS_GID || "";
+
 export interface RawMenuItem {
   Item: string;
   Ingredients: string;
@@ -27,26 +31,32 @@ export interface RawMenuItem {
 }
 
 /**
- * Parse CSV string into array of objects
+ * A generic parsed sheet row (header -> cell value).
  */
-function parseCSV(csv: string): RawMenuItem[] {
-  const lines = csv.trim().split("\n");
+export type RawSheetRow = Record<string, string>;
+
+/**
+ * Parse CSV string into array of row objects keyed by header.
+ */
+function parseCSV(csv: string): RawSheetRow[] {
+  // Normalise line endings (Google may return \r\n) before splitting.
+  const lines = csv.replace(/\r\n/g, "\n").trim().split("\n");
   if (lines.length < 2) return [];
 
   // Parse header row
   const headers = parseCSVLine(lines[0]);
 
   // Parse data rows
-  const items: RawMenuItem[] = [];
+  const items: RawSheetRow[] = [];
   for (let i = 1; i < lines.length; i++) {
     const values = parseCSVLine(lines[i]);
     if (values.length === 0 || !values[0]) continue; // Skip empty rows
 
-    const item: Record<string, string> = {};
+    const item: RawSheetRow = {};
     headers.forEach((header, index) => {
       item[header] = values[index] || "";
     });
-    items.push(item as RawMenuItem);
+    items.push(item);
   }
 
   return items;
@@ -83,17 +93,57 @@ function parseCSVLine(line: string): string[] {
 }
 
 /**
- * Fetch raw menu data from Google Sheets
+ * Fetch and parse a single tab of the spreadsheet via its public CSV export.
+ * @param gid - optional tab id; omit (or empty) for the first/default tab.
  */
-export async function fetchMenuFromSheets(): Promise<RawMenuItem[]> {
-  const response = await fetch(CSV_URL, {
+async function fetchSheetTab(gid?: string): Promise<RawSheetRow[]> {
+  const url = gid ? `${CSV_URL}&gid=${gid}` : CSV_URL;
+  const response = await fetch(url, {
     next: { revalidate: 0 }, // Don't cache at fetch level, we handle caching ourselves
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch menu: ${response.status} ${response.statusText}`);
+    throw new Error(`Failed to fetch sheet (gid=${gid ?? "default"}): ${response.status} ${response.statusText}`);
   }
 
   const csv = await response.text();
   return parseCSV(csv);
+}
+
+/**
+ * Fetch raw menu data from Google Sheets (first/default tab)
+ */
+export async function fetchMenuFromSheets(): Promise<RawMenuItem[]> {
+  const rows = await fetchSheetTab();
+  return rows as RawMenuItem[];
+}
+
+/**
+ * Raw row from the "Substitutions" tab. Headers: Dish, Action, Ingredient,
+ * Substitute, Solves, Introduces. (See directives/substitutions.md.)
+ */
+export interface RawSubstitution {
+  Dish: string;
+  Action: string;
+  Ingredient: string;
+  Substitute: string;
+  Solves: string;
+  Introduces: string;
+  [key: string]: string;
+}
+
+/**
+ * Fetch chef-provided substitution rows from the "Substitutions" tab.
+ * Returns [] when GOOGLE_SUBSTITUTIONS_GID is unset or the fetch fails, so the
+ * feature degrades gracefully (app behaves exactly as before substitutions existed).
+ */
+export async function fetchSubstitutionsFromSheets(): Promise<RawSubstitution[]> {
+  if (!SUBSTITUTIONS_GID) return [];
+  try {
+    const rows = await fetchSheetTab(SUBSTITUTIONS_GID);
+    return rows as RawSubstitution[];
+  } catch (error) {
+    console.error("[google-sheets] Failed to fetch substitutions tab:", error);
+    return [];
+  }
 }

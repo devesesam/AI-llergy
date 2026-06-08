@@ -12,9 +12,17 @@ interface MenuItemData {
   warnings: string[];
 }
 
+interface ModifiedItemData {
+  name: string;
+  ingredients: string;
+  price: number;
+  modifications: string[];
+}
+
 interface MenuResultsProps {
   safeItems: MenuItemData[];
   cautionItems: MenuItemData[];
+  modifiedItems?: ModifiedItemData[];
   excludedCount: number;
   selectedAllergens: SelectedAllergen[];
   customAllergenIds?: string[];
@@ -25,6 +33,7 @@ interface MenuResultsProps {
 export default function MenuResults({
   safeItems,
   cautionItems,
+  modifiedItems = [],
   excludedCount,
   selectedAllergens,
   customAllergenIds = [],
@@ -32,6 +41,7 @@ export default function MenuResults({
   onStartOver,
 }: MenuResultsProps) {
   const totalSafe = safeItems.length + cautionItems.length;
+  const totalAvailable = totalSafe + modifiedItems.length;
 
   return (
     <div className="results-container">
@@ -43,13 +53,15 @@ export default function MenuResults({
 
       <header className="results-header">
         <h2 className="results-title">
-          {totalSafe > 0
-            ? `${totalSafe} item${totalSafe !== 1 ? "s" : ""} available for you`
+          {totalAvailable > 0
+            ? `${totalAvailable} item${totalAvailable !== 1 ? "s" : ""} available for you`
             : "No items match your criteria"}
         </h2>
-        {totalSafe > 0 && (
+        {totalAvailable > 0 && (
           <p className="results-subtitle">
-            Based on your dietary preferences
+            {modifiedItems.length > 0
+              ? `${totalSafe} ready as-is · ${modifiedItems.length} can be modified`
+              : "Based on your dietary preferences"}
           </p>
         )}
       </header>
@@ -67,6 +79,25 @@ export default function MenuResults({
               name={item.name}
               price={item.price}
               ingredients={item.ingredients}
+            />
+          ))}
+        </AccordionSection>
+      )}
+
+      {modifiedItems.length > 0 && (
+        <AccordionSection
+          title="Can be modified for you - subject to kitchen approval"
+          count={modifiedItems.length}
+          variant="modified"
+          defaultOpen={true}
+        >
+          {modifiedItems.map((item, index) => (
+            <MenuItem
+              key={`modified-${index}`}
+              name={item.name}
+              price={item.price}
+              ingredients={item.ingredients}
+              modifications={item.modifications}
             />
           ))}
         </AccordionSection>

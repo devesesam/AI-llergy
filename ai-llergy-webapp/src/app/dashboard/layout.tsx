@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import DashboardNav from '@/components/dashboard/DashboardNav'
+import AccountTopBar from '@/components/dashboard/AccountTopBar'
+import { ToastProvider } from '@/components/ui'
 
 interface VenueMembership {
   venue_id: string
@@ -26,7 +27,7 @@ export default async function DashboardLayout({
     redirect('/login')
   }
 
-  // Get user's venues for the nav
+  // Get user's venues for the switcher
   const { data: memberships } = await supabase
     .from('venue_members')
     .select(`
@@ -41,20 +42,18 @@ export default async function DashboardLayout({
     `)
     .eq('user_id', user.id) as { data: VenueMembership[] | null }
 
-  const venues = memberships?.map(m => ({
+  const venues = (memberships?.map(m => ({
     id: m.venues?.id || m.venue_id,
     name: m.venues?.name || 'Unknown',
     slug: m.venues?.slug || '',
-    inviteCode: m.venues?.invite_code || '',
-    role: m.role,
-  })) || []
+  })) || []).sort((a, b) => a.name.localeCompare(b.name))
 
   return (
-    <div className="dashboard-layout">
-      <DashboardNav user={user} venues={venues} />
-      <main className="dashboard-main">
-        {children}
-      </main>
-    </div>
+    <ToastProvider>
+      <div className="min-h-screen bg-background flex flex-col">
+        <AccountTopBar user={user} venues={venues} />
+        <main className="flex-1">{children}</main>
+      </div>
+    </ToastProvider>
   )
 }

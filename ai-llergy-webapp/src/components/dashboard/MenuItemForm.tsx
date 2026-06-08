@@ -3,8 +3,20 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { Trash2 } from 'lucide-react'
 import { ALL_FILTERS } from '@/lib/allergens'
 import type { MenuItem, MenuItemInsert, MenuItemUpdate, AllergenProfile } from '@/lib/supabase/types'
+import {
+  Card,
+  CardBody,
+  Field,
+  Input,
+  Textarea,
+  Button,
+  ConfirmDialog,
+  useToast,
+} from '@/components/ui'
+import { cn } from '@/lib/cn'
 
 interface MenuItemFormProps {
   venueId: string
@@ -22,22 +34,23 @@ export default function MenuItemForm({ venueId, menuItem, mode }: MenuItemFormPr
     (menuItem?.allergen_profile as AllergenProfile) || {}
   )
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [showDelete, setShowDelete] = useState(false)
 
   const router = useRouter()
   const supabase = createClient()
+  const toast = useToast()
+  const backUrl = `/dashboard/venues/${venueId}/menu`
 
   const toggleAllergen = (id: string) => {
-    setAllergenProfile(prev => ({
+    setAllergenProfile((prev) => ({
       ...prev,
-      [`${id}_free`]: !prev[`${id}_free`]
+      [`${id}_free`]: !prev[`${id}_free`],
     }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setError(null)
 
     try {
       const data: MenuItemInsert | MenuItemUpdate = {
@@ -52,10 +65,7 @@ export default function MenuItemForm({ venueId, menuItem, mode }: MenuItemFormPr
 
       if (mode === 'create') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error: createError } = await (supabase as any)
-          .from('menu_items')
-          .insert(data)
-
+        const { error: createError } = await (supabase as any).from('menu_items').insert(data)
         if (createError) throw createError
       } else {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -63,198 +73,172 @@ export default function MenuItemForm({ venueId, menuItem, mode }: MenuItemFormPr
           .from('menu_items')
           .update(data)
           .eq('id', menuItem!.id)
-
         if (updateError) throw updateError
       }
 
-      router.push(`/dashboard/venues/${venueId}`)
+      toast.success(mode === 'create' ? 'Menu item added' : 'Menu item saved')
+      router.push(backUrl)
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save menu item')
+      toast.error(err instanceof Error ? err.message : 'Failed to save menu item')
     } finally {
       setLoading(false)
     }
   }
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this menu item?')) return
-
     setLoading(true)
     try {
       const { error: deleteError } = await supabase
         .from('menu_items')
         .delete()
         .eq('id', menuItem!.id)
-
       if (deleteError) throw deleteError
-
-      router.push(`/dashboard/venues/${venueId}`)
+      toast.success('Menu item deleted')
+      router.push(backUrl)
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete menu item')
-    } finally {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete menu item')
       setLoading(false)
+      setShowDelete(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="dashboard-form" style={{ maxWidth: 600 }}>
-      <div className="dashboard-form__group">
-        <label htmlFor="name" className="dashboard-form__label">
-          Item Name *
-        </label>
-        <input
-          type="text"
-          id="name"
-          className="dashboard-form__input"
-          placeholder="e.g., Grilled Salmon"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          disabled={loading}
-        />
-      </div>
+    <Card className="max-w-2xl">
+      <CardBody>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <Field label="Item name" required>
+            <Input
+              placeholder="e.g. Grilled Salmon"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              disabled={loading}
+            />
+          </Field>
 
-      <div className="dashboard-form__group">
-        <label htmlFor="description" className="dashboard-form__label">
-          Description
-        </label>
-        <textarea
-          id="description"
-          className="dashboard-form__input"
-          placeholder="Brief description of the dish"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          disabled={loading}
-          rows={2}
-          style={{ resize: 'vertical' }}
-        />
-      </div>
+          <Field label="Description">
+            <Textarea
+              placeholder="Brief description of the dish"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={loading}
+              rows={2}
+            />
+          </Field>
 
-      <div className="dashboard-form__group">
-        <label htmlFor="price" className="dashboard-form__label">
-          Price ($)
-        </label>
-        <input
-          type="number"
-          id="price"
-          className="dashboard-form__input"
-          placeholder="0.00"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-          disabled={loading}
-          step="0.01"
-          min="0"
-          style={{ maxWidth: 150 }}
-        />
-      </div>
+          <Field label="Price ($)">
+            <Input
+              type="number"
+              placeholder="0.00"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              disabled={loading}
+              step="0.01"
+              min="0"
+              className="max-w-[150px]"
+            />
+          </Field>
 
-      <div className="dashboard-form__group">
-        <label htmlFor="ingredients" className="dashboard-form__label">
-          Ingredients
-        </label>
-        <textarea
-          id="ingredients"
-          className="dashboard-form__input"
-          placeholder="List of ingredients (comma-separated)"
-          value={ingredients}
-          onChange={(e) => setIngredients(e.target.value)}
-          disabled={loading}
-          rows={3}
-          style={{ resize: 'vertical' }}
-        />
-        <p className="dashboard-form__help">
-          Used for AI-powered allergen detection when columns aren&apos;t set
-        </p>
-      </div>
+          <Field
+            label="Ingredients"
+            help="Comma-separated. Used for allergen detection when columns aren't set."
+          >
+            <Textarea
+              placeholder="flour, butter, eggs, milk"
+              value={ingredients}
+              onChange={(e) => setIngredients(e.target.value)}
+              disabled={loading}
+              rows={3}
+            />
+          </Field>
 
-      <div className="dashboard-form__group">
-        <label className="dashboard-form__label">
-          Allergen Profile
-        </label>
-        <p className="dashboard-form__help" style={{ marginBottom: 'var(--spacing-sm)' }}>
-          Select all allergens this item is FREE from
-        </p>
-        <div className="allergen-toggles">
-          {ALL_FILTERS.map(allergen => (
-            <label
-              key={allergen.id}
-              className={`allergen-toggle ${allergenProfile[`${allergen.id}_free`] ? 'allergen-toggle--active' : ''}`}
-            >
+          <Field
+            label="Free-from profile"
+            help="Select every allergen this item is FREE from."
+          >
+            <div className="flex flex-wrap gap-2">
+              {ALL_FILTERS.map((allergen) => {
+                const active = allergenProfile[`${allergen.id}_free`] || false
+                return (
+                  <button
+                    key={allergen.id}
+                    type="button"
+                    onClick={() => toggleAllergen(allergen.id)}
+                    disabled={loading}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors',
+                      active
+                        ? 'bg-success-bg border-success/40 text-success'
+                        : 'bg-surface border-border text-text-muted hover:border-text-muted/50'
+                    )}
+                  >
+                    <span>{allergen.icon}</span>
+                    <span>{allergen.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </Field>
+
+          <Field label="Visibility">
+            <label className="inline-flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                className="allergen-toggle__checkbox"
-                checked={allergenProfile[`${allergen.id}_free`] || false}
-                onChange={() => toggleAllergen(allergen.id)}
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
                 disabled={loading}
+                className="w-4 h-4 rounded border-border accent-[#f4c025]"
               />
-              <span>{allergen.icon}</span>
-              <span>{allergen.label}</span>
+              <span className="text-sm text-text">Active (visible on public menu)</span>
             </label>
-          ))}
-        </div>
-      </div>
+          </Field>
 
-      <div className="dashboard-form__group">
-        <label className="allergen-toggle" style={{ maxWidth: 200 }}>
-          <input
-            type="checkbox"
-            className="allergen-toggle__checkbox"
-            checked={isActive}
-            onChange={(e) => setIsActive(e.target.checked)}
-            disabled={loading}
-          />
-          <span>Active (visible on menu)</span>
-        </label>
-      </div>
+          <div className="flex items-center gap-3 pt-2">
+            {mode === 'edit' && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setShowDelete(true)}
+                disabled={loading}
+                icon={<Trash2 className="w-4 h-4" />}
+                className="mr-auto text-danger hover:bg-danger-bg"
+              >
+                Delete
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => router.push(backUrl)}
+              disabled={loading}
+              className={mode === 'edit' ? '' : 'ml-auto'}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" loading={loading} disabled={!name}>
+              {mode === 'create' ? 'Add item' : 'Save changes'}
+            </Button>
+          </div>
+        </form>
+      </CardBody>
 
-      {error && (
-        <div style={{
-          padding: 'var(--spacing-sm)',
-          background: 'rgba(220, 38, 38, 0.1)',
-          border: '1px solid var(--color-severity-critical)',
-          borderRadius: 'var(--radius-sm)',
-          color: 'var(--color-severity-critical)',
-          fontSize: '0.9rem',
-          marginBottom: 'var(--spacing-md)'
-        }}>
-          {error}
-        </div>
-      )}
-
-      <div className="dashboard-form__actions">
-        {mode === 'edit' && (
-          <button
-            type="button"
-            className="btn"
-            onClick={handleDelete}
-            disabled={loading}
-            style={{
-              background: 'transparent',
-              color: 'var(--color-severity-critical)',
-              border: '1px solid var(--color-severity-critical)',
-              marginRight: 'auto'
-            }}
-          >
-            Delete
-          </button>
-        )}
-        <button
-          type="button"
-          className="btn secondary-btn"
-          onClick={() => router.back()}
-          disabled={loading}
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="btn primary-btn"
-          disabled={loading || !name}
-        >
-          {loading ? 'Saving...' : mode === 'create' ? 'Add Item' : 'Save Changes'}
-        </button>
-      </div>
-    </form>
+      <ConfirmDialog
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        onConfirm={handleDelete}
+        title="Delete menu item"
+        destructive
+        confirmLabel="Delete"
+        loading={loading}
+        description={
+          <>
+            Delete <strong>{name || 'this item'}</strong> from the menu? This
+            cannot be undone.
+          </>
+        }
+      />
+    </Card>
   )
 }

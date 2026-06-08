@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import MenuItemForm from '@/components/dashboard/MenuItemForm'
+import { PageHeader } from '@/components/ui'
 
 interface PageProps {
   params: Promise<{ venueId: string }>
@@ -16,32 +16,24 @@ export default async function NewMenuItemPage({ params }: PageProps) {
   const { venueId } = await params
   const supabase = await createClient()
 
-  // Verify venue exists and user has access
-  const { data: venueData, error } = await supabase
+  const { data: venue, error } = await supabase
     .from('venues')
     .select('id, name')
     .eq('id', venueId)
     .single() as { data: VenueBasic | null; error: unknown }
 
-  if (error || !venueData) {
+  if (error || !venue) {
     notFound()
   }
 
-  const venue = venueData
-
   return (
-    <div className="dashboard-content">
-      <Link href={`/dashboard/venues/${venueId}`} className="dashboard-back">
-        &larr; Back to {venue.name}
-      </Link>
-
-      <div className="dashboard-content__header">
-        <h1>Add Menu Item</h1>
-        <p className="dashboard-content__subtitle">
-          Add a new item to your menu
-        </p>
-      </div>
-
+    <div>
+      <PageHeader
+        title="Add menu item"
+        subtitle="Add a new item to your menu."
+        backHref={`/dashboard/venues/${venueId}/menu`}
+        backLabel="Back to menu"
+      />
       <MenuItemForm venueId={venueId} mode="create" />
     </div>
   )

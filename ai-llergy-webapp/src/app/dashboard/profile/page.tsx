@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import ProfileForm from '@/components/dashboard/ProfileForm'
+import { Card, CardBody, PageHeader } from '@/components/ui'
 
 interface UserProfile {
   id: string
@@ -20,19 +21,23 @@ export default async function ProfilePage() {
     .single() as { data: UserProfile | null }
 
   return (
-    <div className="dashboard-content">
-      <div className="dashboard-content__header">
-        <h1>Profile</h1>
-        <p className="dashboard-content__subtitle">
-          Manage your account settings
-        </p>
-      </div>
-
-      <ProfileForm
-        userId={user?.id || ''}
-        email={user?.email || ''}
-        fullName={profile?.full_name || ''}
+    <div className="p-4 md:p-8 max-w-2xl mx-auto">
+      <PageHeader
+        title="Profile"
+        subtitle="Manage your account settings."
+        backHref="/dashboard"
+        backLabel="Back to dashboard"
       />
+
+      <Card>
+        <CardBody>
+          <ProfileForm
+            userId={user?.id || ''}
+            email={user?.email || ''}
+            fullName={profile?.full_name || ''}
+          />
+        </CardBody>
+      </Card>
     </div>
   )
 }

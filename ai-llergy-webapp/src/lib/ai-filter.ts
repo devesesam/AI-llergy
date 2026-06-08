@@ -63,6 +63,7 @@ export async function filterMenuWithAI(
     return {
       safeItems: [],
       cautionItems: [],
+      modifiableItems: [],
       excludedCount: standardExcludedCount,
     };
   }
@@ -130,6 +131,7 @@ export async function filterMenuWithAI(
   return {
     safeItems,
     cautionItems,
+    modifiableItems: [],
     excludedCount: standardExcludedCount + aiExcludedCount,
   };
 }
