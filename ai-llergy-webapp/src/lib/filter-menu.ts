@@ -133,12 +133,14 @@ export function formatWarnings(warnings: string[]): string[] {
     onion: "Onion",
     capsicum: "Capsicum",
     chili: "Chili",
+    nightshades: "Nightshade",
     vegetarian: "Vegetarian",
     vegan: "Vegan",
+    halal: "Halal",
   };
 
   // Dietary preferences don't use "-free" suffix
-  const dietaryPreferences = new Set(["vegan", "vegetarian"]);
+  const dietaryPreferences = new Set(["vegan", "vegetarian", "halal"]);
 
   return warnings.map((w) => {
     const label = allergenLabels[w] || w;

@@ -72,7 +72,9 @@ function transformMenuItem(raw: RawMenuItem): MenuItem {
   }
 
   return {
-    name: raw.Item || "",
+    // Accept either "Item" or "Dish" as the dish-name column header, so the
+    // menu tab can use the same "Dish" naming as the Substitutions tab.
+    name: raw.Item || raw.Dish || "",
     ingredients: raw.Ingredients || "",
     price: parseFloat(raw.Price) || 0,
     allergenProfile,

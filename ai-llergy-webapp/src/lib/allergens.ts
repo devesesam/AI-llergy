@@ -9,15 +9,16 @@ export interface Allergen {
 export const DIETARY_PREFERENCES: Allergen[] = [
   { id: "vegetarian", label: "Vegetarian", icon: "🥗", columnName: "Vegetarian" },
   { id: "vegan", label: "Vegan", icon: "🥦", columnName: "Vegan" },
+  { id: "halal", label: "Halal", icon: "☪️", columnName: "HALAL" },
 ];
 
 // Allergens (ordered by prevalence - most common first)
+// Note: "Wheat" is intentionally omitted — it is covered by "Gluten".
 export const ALLERGENS: Allergen[] = [
   // Tier 2: Most Common (Big 9)
   { id: "peanuts", label: "Peanuts", icon: "🥜", columnName: "PEANUT FREE" },
   { id: "treenuts", label: "Tree Nuts", icon: "🌳", columnName: "TREE NUT FREE" },
   { id: "gluten", label: "Gluten", icon: "🍞", columnName: "GLUTEN FREE" },
-  { id: "wheat", label: "Wheat", icon: "🌾", columnName: "WHEAT FREE" },
   { id: "dairy", label: "Dairy", icon: "🥛", columnName: "DAIRY FREE" },
   { id: "eggs", label: "Eggs", icon: "🥚", columnName: "EGG FREE" },
   { id: "soy", label: "Soy", icon: "🌱", columnName: "SOY FREE" },
@@ -38,6 +39,7 @@ export const ALLERGENS: Allergen[] = [
   { id: "celery", label: "Celery", icon: "🥬", columnName: "CELERY FREE" },
   { id: "chili", label: "Chili", icon: "🔥", columnName: "CHILI FREE" },
   { id: "capsicum", label: "Capsicum", icon: "🌶️", columnName: "CAPSICUM FREE" },
+  { id: "nightshades", label: "Nightshades", icon: "🍅", columnName: "NIGHTSHADE FREE" },
   { id: "lupin", label: "Lupin", icon: "🌸", columnName: "LUPIN FREE" },
   { id: "molluscs", label: "Molluscs", icon: "🦑", columnName: "MOLLUSC FREE" },
 ];
@@ -80,7 +82,7 @@ export interface CustomTag {
   type?: SeverityType;  // Severity level (set in SeverityModal)
 }
 
-// Allergen group definition
+// Allergen group definition (used for the collapsible "More allergens" dropdown)
 export interface AllergenGroup {
   id: string;
   label: string;
@@ -88,22 +90,16 @@ export interface AllergenGroup {
   members: string[]; // Allergen IDs
 }
 
-// Groups for collapsible UI
-export const ALLERGEN_GROUPS: AllergenGroup[] = [
-  { id: "nuts", label: "Nuts", icon: "🥜", members: ["peanuts", "treenuts", "almond", "walnut", "pistachio"] },
-  { id: "seafood", label: "Seafood", icon: "🦐", members: ["fish", "shellfish", "molluscs"] },
-  { id: "aromatics", label: "Aromatics", icon: "🧄", members: ["garlic", "onion", "celery"] },
-  { id: "spicy", label: "Spicy", icon: "🌶️", members: ["chili", "capsicum"] },
-];
+// Primary allergens shown directly on the form, each on its own row.
+export const PRIMARY_ALLERGEN_IDS = ["gluten", "dairy", "eggs"] as const;
 
-// Get all allergen IDs that belong to groups
-export const GROUPED_ALLERGEN_IDS = new Set(
-  ALLERGEN_GROUPS.flatMap(g => g.members)
-);
+export const PRIMARY_ALLERGENS: Allergen[] = PRIMARY_ALLERGEN_IDS
+  .map((id) => ALLERGENS.find((a) => a.id === id))
+  .filter((a): a is Allergen => a !== undefined);
 
-// Get allergens that are NOT in any group (standalone)
-export const STANDALONE_ALLERGENS = ALLERGENS.filter(
-  a => !GROUPED_ALLERGEN_IDS.has(a.id)
+// Everything else lives in the collapsible "More allergens" dropdown.
+export const SECONDARY_ALLERGENS: Allergen[] = ALLERGENS.filter(
+  (a) => !PRIMARY_ALLERGEN_IDS.includes(a.id as (typeof PRIMARY_ALLERGEN_IDS)[number])
 );
 
 // Helper to get allergen by ID

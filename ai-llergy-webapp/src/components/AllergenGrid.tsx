@@ -2,8 +2,8 @@
 
 import {
   DIETARY_PREFERENCES,
-  STANDALONE_ALLERGENS,
-  ALLERGEN_GROUPS,
+  PRIMARY_ALLERGENS,
+  SECONDARY_ALLERGENS,
   Allergen,
   SelectedAllergen,
   SeverityType,
@@ -43,11 +43,12 @@ export default function AllergenGrid({
       {/* Dietary Preferences */}
       <div className="allergen-grid__section">
         <h3 className="allergen-grid__section-title">Dietary Preferences</h3>
-        <div className="allergen-grid__buttons">
+        <div className="allergen-grid__rows">
           {DIETARY_PREFERENCES.map((allergen) => (
             <AllergenButton
               key={allergen.id}
               allergen={allergen}
+              variant="row"
               isSelected={isConfirmed(allergen.id)}
               isPending={isPending(allergen.id)}
               selectionType={getSelectionType(allergen.id)}
@@ -57,31 +58,37 @@ export default function AllergenGrid({
         </div>
       </div>
 
-      {/* Grouped Allergens */}
+      {/* Common Allergens — shown directly, each on its own row */}
       <div className="allergen-grid__section">
-        <h3 className="allergen-grid__section-title">Allergen Groups</h3>
-        <div className="allergen-grid__groups">
-          {ALLERGEN_GROUPS.map((group) => (
-            <AllergenGroup
-              key={group.id}
-              group={group}
-              pendingAllergenIds={pendingAllergenIds}
-              selectedAllergens={selectedAllergens}
-              onAllergenClick={onAllergenClick}
+        <h3 className="allergen-grid__section-title">Common Allergens</h3>
+        <div className="allergen-grid__rows">
+          {PRIMARY_ALLERGENS.map((allergen) => (
+            <AllergenButton
+              key={allergen.id}
+              allergen={allergen}
+              variant="row"
+              isSelected={isConfirmed(allergen.id)}
+              isPending={isPending(allergen.id)}
+              selectionType={getSelectionType(allergen.id)}
+              onToggle={() => onAllergenClick(allergen)}
             />
           ))}
-          <AllergenGroup
-            group={{
-              id: "other",
-              label: "Other",
-              icon: "🍽️",
-              members: STANDALONE_ALLERGENS.map(a => a.id),
-            }}
-            pendingAllergenIds={pendingAllergenIds}
-            selectedAllergens={selectedAllergens}
-            onAllergenClick={onAllergenClick}
-          />
         </div>
+      </div>
+
+      {/* Everything else — collapsed into a single dropdown */}
+      <div className="allergen-grid__section">
+        <AllergenGroup
+          group={{
+            id: "more",
+            label: "More allergens",
+            icon: "➕",
+            members: SECONDARY_ALLERGENS.map((a) => a.id),
+          }}
+          pendingAllergenIds={pendingAllergenIds}
+          selectedAllergens={selectedAllergens}
+          onAllergenClick={onAllergenClick}
+        />
       </div>
     </div>
   );

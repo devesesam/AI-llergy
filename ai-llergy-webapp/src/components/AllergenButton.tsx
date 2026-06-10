@@ -7,6 +7,7 @@ interface AllergenButtonProps {
   isSelected: boolean;
   isPending?: boolean; // Selected but no severity assigned yet
   selectionType?: SeverityType;
+  variant?: "tile" | "row"; // "tile" = square grid cell, "row" = full-width row
   onToggle: (id: string) => void;
 }
 
@@ -15,10 +16,14 @@ export default function AllergenButton({
   isSelected,
   isPending = false,
   selectionType,
+  variant = "tile",
   onToggle,
 }: AllergenButtonProps) {
   const getClassName = () => {
     let className = "allergen-option";
+    if (variant === "row") {
+      className += " allergen-option--row";
+    }
     if (isSelected || isPending) {
       className += " selected";
       if (isPending) {
