@@ -52,32 +52,76 @@ export function parseAllergenList(raw: string | undefined): string[] {
 }
 
 /**
- * Build a Substitution from a raw sheet row. Returns null for blank/invalid rows.
+ * Find a cell value by tolerant header matching (case/space-insensitive).
+ * Tries exact lowercased header names first, then a fuzzy "header includes ALL
+ * keywords and NONE of the excludes" match. Returns "" if nothing matches.
+ *
+ * This keeps the parser working as the chef/Mosaic rename columns (the
+ * Substitutions tab has gone Ingredient→Element, Solves→"Solves allergy", etc.).
  */
-export function parseSubstitutionRow(row: {
-  Dish?: string;
-  Action?: string;
-  Ingredient?: string;
-  Substitute?: string;
-  Solves?: string;
-  Introduces?: string;
-}): Substitution | null {
-  const dish = (row.Dish || "").trim();
-  const actionRaw = (row.Action || "").trim().toLowerCase();
-  const solves = parseAllergenList(row.Solves);
+function pickCell(
+  row: Record<string, string | undefined>,
+  opts: { exact?: string[]; includes?: string[]; excludes?: string[] }
+): string {
+  const exact = opts.exact ?? [];
+  const includes = opts.includes ?? [];
+  const excludes = opts.excludes ?? [];
+  const entries = Object.keys(row).map((k) => [k, k.trim().toLowerCase()] as const);
 
-  // A usable row needs a dish, a known action, and at least one solved allergen.
+  for (const [key, k] of entries) {
+    if (exact.includes(k)) return row[key] ?? "";
+  }
+  if (includes.length) {
+    for (const [key, k] of entries) {
+      if (includes.every((t) => k.includes(t)) && !excludes.some((t) => k.includes(t))) {
+        return row[key] ?? "";
+      }
+    }
+  }
+  return "";
+}
+
+/**
+ * Build a Substitution from a raw sheet row. Returns null for blank/invalid rows.
+ *
+ * Column mapping (header-name tolerant — handles both the original template and
+ * Mosaic's richer schema):
+ *   Dish        ← "Dish"/"Item", else first column
+ *   Action      ← "Action"
+ *   Ingredient  ← "Ingredient" or "Element"            (what's removed / swapped out)
+ *   Substitute  ← "Substitute" / "Substitute Element (name…)", else the substitute
+ *                 ingredient(s) column; "NO"/blank = no replacement
+ *   Solves      ← "Solves" / "Solves allergy"
+ *   Introduces  ← "Introduces" / "Introduces allergy …"
+ */
+export function parseSubstitutionRow(row: Record<string, string | undefined>): Substitution | null {
+  const keys = Object.keys(row);
+  const firstColValue = keys.length ? (row[keys[0]] ?? "") : "";
+
+  const dish = (pickCell(row, { exact: ["dish", "item"] }) || firstColValue).trim();
+  const actionRaw = pickCell(row, { exact: ["action"] }).trim().toLowerCase();
+  const solves = parseAllergenList(pickCell(row, { exact: ["solves"], includes: ["solve"] }));
+
+  // A usable row needs a dish and at least one solved allergen.
   if (!dish || solves.length === 0) return null;
   const action: SubstitutionAction = actionRaw === "substitute" ? "substitute" : "remove";
 
-  return {
-    dish,
-    action,
-    ingredient: (row.Ingredient || "").trim(),
-    substitute: (row.Substitute || "").trim(),
-    solves,
-    introduces: action === "substitute" ? parseAllergenList(row.Introduces) : [],
-  };
+  const ingredient = pickCell(row, { exact: ["ingredient", "element"] }).trim();
+
+  // Replacement: prefer a name column; fall back to the substitute ingredient(s)
+  // column (some rows put the replacement name there). "NO"/blank => none.
+  let substitute = pickCell(row, { exact: ["substitute"], includes: ["substitute", "name"] }).trim();
+  if (!substitute || substitute.toUpperCase() === "NO") {
+    substitute = pickCell(row, { includes: ["substitute", "ingredient"] }).trim();
+  }
+  if (substitute.toUpperCase() === "NO") substitute = "";
+
+  const introduces =
+    action === "substitute"
+      ? parseAllergenList(pickCell(row, { exact: ["introduces"], includes: ["introduc", "allerg"] }))
+      : [];
+
+  return { dish, action, ingredient, substitute, solves, introduces };
 }
 
 function allergenLabel(id: string): string {

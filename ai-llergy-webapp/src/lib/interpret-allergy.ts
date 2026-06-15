@@ -13,6 +13,7 @@ export const SYNONYM_MAP: Record<string, string[]> = {
   // Dietary preferences
   vegetarian: ["veggie", "no meat", "meatless"],
   vegan: ["plant-based", "plant based", "no animal"],
+  halal: ["halaal", "zabiha", "no pork", "no alcohol"],
 
   // Big 9 allergens
   peanuts: ["peanut", "groundnut", "groundnuts", "arachis"],
@@ -39,6 +40,7 @@ export const SYNONYM_MAP: Record<string, string[]> = {
   celery: ["celeriac"],
   chili: ["chilli", "chillies", "chilies", "spicy", "hot pepper"],
   capsicum: ["bell pepper", "bell peppers", "peppers"],
+  nightshades: ["nightshade", "tomato", "potato", "eggplant", "aubergine", "paprika"],
   lupin: ["lupine", "lupini", "lupin beans"],
   molluscs: ["mollusk", "mollusks", "squid", "octopus", "clam", "clams", "mussel", "mussels", "oyster", "oysters", "scallop", "scallops", "snail", "snails"],
 };

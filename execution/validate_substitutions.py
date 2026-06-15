@@ -19,7 +19,33 @@ Exit code 0 = valid, 1 = problems found (printed).
 import csv
 import sys
 
-REQUIRED_COLUMNS = ["Dish", "Action", "Ingredient", "Substitute", "Solves", "Introduces"]
+def pick(row, exact=(), includes=(), excludes=()):
+    """Tolerant header lookup mirroring substitutions.ts pickCell — survives
+    column renames (Ingredient→Element, Solves→'Solves allergy', etc.)."""
+    items = [(k, (k or "").strip().lower()) for k in row.keys()]
+    for k, kl in items:
+        if kl in set(exact):
+            return row.get(k) or ""
+    if includes:
+        for k, kl in items:
+            if all(t in kl for t in includes) and not any(t in kl for t in excludes):
+                return row.get(k) or ""
+    return ""
+
+
+def get_solves(row):
+    return pick(row, exact={"solves"}, includes=("solve",))
+
+
+def get_introduced(row):
+    return pick(row, exact={"introduces"}, includes=("introduc", "allerg"))
+
+
+def get_substitute(row):
+    v = pick(row, exact={"substitute"}, includes=("substitute", "name")).strip()
+    if not v or v.upper() == "NO":
+        v = pick(row, includes=("substitute", "ingredient")).strip()
+    return "" if v.upper() == "NO" else v
 
 # Canonical allergen ids — must match ai-llergy-webapp/src/lib/allergens.ts
 VALID_ALLERGEN_IDS = {
@@ -32,8 +58,14 @@ VALID_ALLERGEN_IDS = {
 
 def load_menu_items(menu_path):
     with open(menu_path, newline="", encoding="utf-8") as f:
-        rows = list(csv.DictReader(f))
-    return {(r.get("Item") or "").strip().lower() for r in rows if (r.get("Item") or "").strip()}
+        reader = csv.DictReader(f)
+        first_col = (reader.fieldnames or [None])[0]
+        rows = list(reader)
+    # Dish name = first column, whatever it's headed (Item/Dish/Element/...),
+    # matching the app. Explicit Item/Dish take priority if present.
+    def name(r):
+        return (r.get("Item") or r.get("Dish") or (r.get(first_col) if first_col else "") or "").strip()
+    return {name(r).lower() for r in rows if name(r)}
 
 
 def parse_ids(raw):
@@ -52,23 +84,24 @@ def main():
 
     with open(subs_path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        missing_cols = [c for c in REQUIRED_COLUMNS if c not in (reader.fieldnames or [])]
-        if missing_cols:
-            print(f"FAIL: missing required column(s): {missing_cols}")
-            print(f"  found header: {reader.fieldnames}")
+        first_col = (reader.fieldnames or [None])[0]
+        # Soft schema check — the parser is header-tolerant, but a missing Solves
+        # column means nothing can be parsed, so flag it.
+        if not any("solve" in (h or "").lower() for h in (reader.fieldnames or [])):
+            print(f"FAIL: no 'Solves' column found. Header: {reader.fieldnames}")
             sys.exit(1)
 
         row_count = 0
         for i, row in enumerate(reader, start=2):  # row 1 = header
-            dish = (row.get("Dish") or "").strip()
+            dish = (pick(row, exact={"dish", "item"}) or (row.get(first_col) if first_col else "") or "").strip()
             if not dish:
                 continue  # skip blank lines
             row_count += 1
 
-            action = (row.get("Action") or "").strip().lower()
-            substitute = (row.get("Substitute") or "").strip()
-            solves = parse_ids(row.get("Solves"))
-            introduces = parse_ids(row.get("Introduces"))
+            action = pick(row, exact={"action"}).strip().lower()
+            substitute = get_substitute(row)
+            solves = parse_ids(get_solves(row))
+            introduces = parse_ids(get_introduced(row))
 
             if dish.lower() not in menu_items:
                 errors.append(f"row {i}: Dish '{dish}' does not match any menu Item")

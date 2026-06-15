@@ -6,6 +6,70 @@ This directive tracks significant changes, fixes, and improvements to the AI-lle
 
 ---
 
+## June 2026 — Kisa Menu + Chef Substitutions (v4.6)
+
+**Substitutions / "Can be modified" feature.** Excluded dishes are rescued into a new results section
+when the chef supplies a viable swap or removal. Read deterministically from a "Substitutions" tab in
+the menu Google Sheet (`GOOGLE_SUBSTITUTIONS_GID`) — no LLM at request time. Safety guard: never
+suggests a swap that introduces an allergen the diner also avoids.
+
+| File | Change |
+|------|--------|
+| `src/lib/substitutions.ts` | **New.** Parse rows, viability/conflict logic, instruction text. Tolerant of `Introduces`/`Introduces allergy` headers. |
+| `src/lib/google-sheets.ts` | Generic `fetchSheetTab(gid)`; `fetchSubstitutionsFromSheets()`; normalize `\r\n`. |
+| `src/lib/menu-service.ts` | `getSubstitutions()` (10-min cache, dish-keyed map). **Name column accepts `Item` or `Dish`.** |
+| `src/lib/filter-menu.ts` | `FilteredItem.modifications`, `FilterResult.modifiableItems`, rescue step. |
+| `src/app/api/submit/route.ts` | Loads subs, passes to filter, returns `modifiedItems`. |
+| `MenuResults.tsx` / `MenuItem.tsx` / `AccordionSection.tsx` | "Can be modified" accordion + per-dish instructions (`modified` variant). |
+| `src/app/globals.css` | Seafoam "substitutions" styles; **ingredient box `max-height` 200→600px + `overflow-y:auto`** (long verbatim lists were clipping). |
+
+**Bug fixes from the live sheet being actively edited** (full detail in `known_issues_and_fixes.md`):
+- **BUG-010 (Critical)** — menu returned 0 results after the sheet's name column was renamed
+  `Item`→`Dish`. Fixed: `name: raw.Item || raw.Dish`.
+- **BUG-011 (Medium)** — verbatim ingredient lists clipped in the results card. Fixed in `globals.css`.
+- **BUG-012 (High/safety)** — substitution "introduces" guard disabled after the subs tab renamed
+  `Introduces`→`Introduces allergy`. Fixed: tolerant header matching.
+
+**Data work**: Kisa's real menu onboarded from the chef's PDF (allergens inferred), then the
+`Ingredients` column regenerated **verbatim** from the PDF.
+
+**Verification**: `tsc --noEmit` clean; unit checks of the rescue logic; live `/api/submit` confirms
+gluten→{Pita, Boreks, Lemon Tart} rescued, gluten+treenuts hides Pita (guard), garlic→Hummus removal.
+
+**Deploy note**: All of the above is local-only until a **Netlify redeploy**.
+
+**Related directives**: `directives/substitutions.md`, `directives/google_sheet_data_source.md`.
+
+---
+
+## June 2026 — Allergen Form Redesign (v4.5)
+
+**Summary:** Reworked the allergen selection form and expanded the allergen set.
+
+### Form layout
+- Removed the multi-group accordion (Nuts/Seafood/Aromatics/Spicy/Other).
+- New layout: **Dietary Preferences** + **Common Allergens** (Gluten, Dairy, Eggs) as full-width **rows**, then a single **"More allergens"** dropdown for everything else.
+- `AllergenButton` gained a `variant: "tile" | "row"` prop.
+
+### Allergen set
+- **Removed `wheat`** (subset of `gluten`; wheat→gluten synonym still routes wheat ingredients).
+- **Added `halal`** (dietary preference, column `HALAL`) and **`nightshades`** (allergen, column `NIGHTSHADE FREE`).
+
+### Data / filtering
+- `allergens.ts`: added `PRIMARY_ALLERGEN_IDS` / `PRIMARY_ALLERGENS` / `SECONDARY_ALLERGENS`; removed `ALLERGEN_GROUPS` / `GROUPED_ALLERGEN_IDS` / `STANDALONE_ALLERGENS`.
+- `filter-menu.ts`: `formatWarnings()` now treats `halal` as a dietary preference and labels `nightshades`.
+
+### Bugs fixed
+- **BUG-008**: row buttons rendered as squares — CSS specificity tie; fixed by scoping row styles under `.allergen-grid__rows`.
+- **BUG-009**: `halal` column not detected — `columnName` was `"Halal"` but the sheet header is `"HALAL"` (case-sensitive); fixed.
+
+### New tooling
+- `execution/classify_nightshades.py` — auto-classifies the NIGHTSHADE FREE column from ingredients (paste-ready output; no write creds in project). See `directives/classify_nightshades.md`.
+
+**Files Modified:** `src/lib/allergens.ts`, `src/components/AllergenGrid.tsx`, `src/components/AllergenButton.tsx`, `src/lib/filter-menu.ts`, `src/app/globals.css`.
+
+---
+
 ## February 2026 - Dashboard Modernization (Phase 2)
 
 ### Visual Design Overhaul

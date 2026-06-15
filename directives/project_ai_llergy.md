@@ -16,10 +16,14 @@
 *   **Skill Access**: Refer to `skills/graphics_design/SKILL.md` for logo overlay scripts and prompting guides.
 
 ### External Data Sources
-*   **Menu Database**: Google Sheets (public)
-    *   Sheet ID: `1HNWCErJzCBRfy-oPOqPgg1UYYbhOkD5tuVrLWevryeU`
+*   **Menu Database**: Google Sheets (public CSV export, read-only)
+    *   Sheet ID: set via `GOOGLE_SHEET_ID` env var. Current (Kisa): `1xxS6NRa16fptx3c4CJ5-V6mp-yDIHDGb7RnLx03isaw`. Old sample: `1HNWCErJzCBRfy-oPOqPgg1UYYbhOkD5tuVrLWevryeU`
     *   Contains: Menu items, ingredients, prices, allergen columns (YES/NO/CAN BE)
+    *   **No write credentials** in project — app only reads. Writing to the sheet (e.g. nightshade column) is manual paste unless a service account is added.
+    *   **Substitutions tab** (same sheet, `GOOGLE_SUBSTITUTIONS_GID`, current `1265271651`): chef swaps/removals powering the "Can be modified" feature. See `directives/substitutions.md`.
+    *   **Full schema, tolerance rules, and failure modes**: `directives/google_sheet_data_source.md` (READ THIS before editing the sheet or menu-loading code).
 *   **AI API**: Anthropic Claude (for custom allergy text interpretation)
+*   **Deployment**: **Netlify**, live at **https://ai-lergy.co.nz** (single "l"). Env vars set in Netlify → Site configuration → Environment variables. Code changes require a redeploy; sheet edits appear within the 10-min cache.
 
 ## 2. Architecture & Tech Stack
 
@@ -76,6 +80,55 @@
     4.  Check browser console for errors.
 
 ## 4. Change Log & Issues
+
+### v4.6 - Kisa Real Menu + Chef Substitutions ("Can be modified") (2026-06)
+
+**Summary**: Onboarded Kisa's real menu from the chef's PDF and added a chef-driven "Can be modified"
+substitutions feature, plus the bug fixes that came from the sheet being actively edited.
+
+*   **Kisa menu onboarding**: Translated the chef's allergen PDF (~30 dishes, no allergens/prices) into
+    the menu sheet, **inferring** the 24 allergen flags per dish from ingredients (best-effort, chef
+    reviews). Generated via `.tmp/gen_kisa_menu.py` → `kisa_menu.csv`; imported to the Google Sheet,
+    which is now the live source (Supabase paused).
+*   **Verbatim ingredients**: Chef (Tom) flagged that condensed ingredient summaries weren't faithful.
+    Regenerated every dish's `Ingredients` column **verbatim** from the PDF (additives/E-numbers
+    included) — `kisa_ingredients_verbatim.csv` + updated `kisa_menu.csv`.
+*   **FEATURE: Substitutions / "Can be modified"** — excluded dishes are rescued into a new results
+    section when the chef provides a viable swap/removal, with a safety guard that never suggests a
+    swap introducing an allergen the diner also avoids. Deterministic (no LLM at request time). New
+    `src/lib/substitutions.ts`, `modifiableItems` in `filter-menu.ts`, `modifiedItems` in `route.ts`,
+    new "Can be modified" accordion. Config: `GOOGLE_SUBSTITUTIONS_GID`. See
+    `directives/substitutions.md`, `directives/google_sheet_data_source.md`,
+    `known_issues_and_fixes.md` FEATURE-004.
+*   **Bug fixes from live-sheet edits** (see `known_issues_and_fixes.md`):
+    *   BUG-010 — menu returned 0 results after column A was renamed (`Item`→`Dish`→`Element`); the
+        app now reads the dish name from **column A by position**, so renaming it can't break the menu.
+    *   BUG-011 — long verbatim ingredient lists were clipped in the results card (CSS max-height).
+    *   BUG-012 — substitutions safety guard silently disabled after `Introduces`→`Introduces allergy`
+        rename; parser made tolerant.
+    *   BUG-013 — Mosaic rebuilt the Substitutions tab (`Solves`→`Solves allergy`, `Ingredient`→
+        `Element`, …); the parser is now keyword-matched (`pickCell`) and survives these renames.
+    *   New **Pattern 6: Google Sheet schema drift** — the dominant incident class; mitigations +
+        diagnosis steps documented.
+*   **Tooling/docs added**: `execution/validate_substitutions.py`, `kisa_substitutions_template.csv`,
+    `directives/substitutions.md`, `directives/google_sheet_data_source.md`.
+*   **Status**: **Live (Local)**. Three code fixes (Item/Dish, ingredient box, Introduces tolerance)
+    + the substitutions feature need a **Netlify redeploy** to reach production.
+
+---
+
+### v4.5 - Allergen Form Redesign + Halal/Nightshades (2026-06-11)
+
+**Summary**: Reworked the allergen selection form and expanded the allergen set.
+
+*   **Form layout**: Removed the v4.4 multi-group accordion (Nuts/Seafood/Aromatics/Spicy/Other). New layout = **Dietary Preferences** rows + **Common Allergens** (Gluten, Dairy, Eggs) rows + a single **"More allergens"** dropdown for everything else. `AllergenButton` gained a `variant: "tile" | "row"` prop.
+*   **Removed `wheat`**: subset of `gluten`; the wheat→gluten synonym still routes wheat ingredients to gluten.
+*   **Added `halal`** (dietary preference, column `HALAL`) and **`nightshades`** (allergen, column `NIGHTSHADE FREE`).
+*   **Data model** (`allergens.ts`): added `PRIMARY_ALLERGEN_IDS` / `PRIMARY_ALLERGENS` / `SECONDARY_ALLERGENS`; removed `ALLERGEN_GROUPS` / `GROUPED_ALLERGEN_IDS` / `STANDALONE_ALLERGENS`.
+*   **New tool**: `execution/classify_nightshades.py` fills the NIGHTSHADE FREE column from ingredients (paste-ready output; no Google write creds in project).
+*   **Bugs fixed**: BUG-008 (rows rendered as squares — CSS specificity), BUG-009 (Halal column not detected — header case mismatch `HALAL` vs `Halal`).
+*   **Files Modified**: `allergens.ts`, `AllergenGrid.tsx`, `AllergenButton.tsx`, `filter-menu.ts`, `globals.css`; `execution/classify_nightshades.py` (new).
+*   **Related Directives**: `allergen_management.md` §5 (form layout), `classify_nightshades.md` (new tool), `css_styling_system.md` §5 (row specificity), `known_issues_and_fixes.md` BUG-008/009 + FEATURE-003.
 
 ### v4.4 - Venue Invite Codes & Team Membership (2026-02-20)
 

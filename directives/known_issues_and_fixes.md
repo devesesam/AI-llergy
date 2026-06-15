@@ -1094,3 +1094,300 @@ When fixing a bug:
 - Always update `types.ts` when adding new RPC functions.
 - Prefer using Supabase CLI to generate types automatically to avoid sync issues.
 
+---
+
+### BUG-008: Full-Width Allergen Rows Rendered as Big Squares
+
+| Field | Value |
+|-------|-------|
+| **Reported** | 2026-06-11 |
+| **Status** | Fixed (v4.5) |
+| **Severity** | Medium (Visual) |
+
+**Summary**: In the v4.5 form redesign, Dietary Preferences and Common Allergens were meant to be slim full-width rows but rendered as large squares.
+
+**Symptoms**:
+- Gluten/Dairy/Eggs (and Vegetarian/Vegan/Halal) appeared as big square tiles, icon-above-label, instead of short horizontal rectangles.
+- The CSS override "looked correct" but had no visible effect.
+
+**Root Cause**: CSS specificity tie + source order.
+- The override used a single BEM modifier class `.allergen-option--row` (specificity **0,1,0**).
+- The base `.allergen-option` rule (also **0,1,0**) defines `aspect-ratio: 1 / 0.85` and `flex-direction: column`, and appears **later** in `globals.css`.
+- Equal specificity → later rule wins → the square base clobbered the row override.
+
+**Fix**: Scope the row rules under the parent container so they out-specify the base:
+```css
+/* 0,2,0 — beats base .allergen-option (0,1,0) regardless of order */
+.allergen-grid__rows .allergen-option {
+  flex-direction: row;
+  aspect-ratio: auto;
+  justify-content: center;   /* centred content (follow-up request) */
+  text-align: center;
+  /* ...compact padding/icon... */
+}
+```
+
+**Files Modified**:
+- `ai-llergy-webapp/src/app/globals.css`
+
+**Prevention**:
+- A BEM `--modifier` class does **not** out-specify its base block — they're equal. To override a later same-specificity rule, raise specificity (e.g. parent-scope `.parent .block`) or place the override after the base rule.
+- When a CSS change appears to have "no effect", check the cascade in DevTools for a later equal-specificity rule winning, before assuming the file didn't reload.
+
+---
+
+### BUG-009: Halal Column Not Detected (Case-Sensitive Column Lookup)
+
+| Field | Value |
+|-------|-------|
+| **Reported** | 2026-06-11 |
+| **Status** | Fixed (v4.5) |
+| **Severity** | High |
+
+**Summary**: The new `halal` dietary preference was selectable but would have silently used slow AI inference instead of the sheet's YES/NO `HALAL` column.
+
+**Symptoms**:
+- Selecting Halal did not use the chef-provided HALAL column data.
+- `getAvailableColumns()` did not include the Halal column, so the route classified `halal` as an AI allergen.
+
+**Root Cause**: Case-sensitive column lookup mismatch.
+- The Google Sheet header is `HALAL` (uppercase).
+- `allergens.ts` defined `columnName: "Halal"` (title case).
+- `menu-service.ts` reads `raw[allergen.columnName]` — `raw["Halal"]` is `undefined` because the actual key is `"HALAL"`. So `detectAvailableColumns()` never registered it.
+
+**Fix**: Match the sheet header exactly — changed `columnName` to `"HALAL"`.
+
+```typescript
+{ id: "halal", label: "Halal", icon: "☪️", columnName: "HALAL" },
+```
+
+**Files Modified**:
+- `ai-llergy-webapp/src/lib/allergens.ts`
+
+**Prevention**:
+- `columnName` MUST match the sheet header **exactly, including case** — sheet/JS key access is case-sensitive.
+- After adding/wiring an allergen, verify the column is detected: confirm it appears in `getAvailableColumns()` logs, or that selecting it filters via the column path (fast), not AI (~2-5s).
+- Note inconsistent header casing in the Kisa sheet: `Vegetarian`/`Vegan` are Title Case, but `HALAL` and the `* FREE` allergen columns are UPPERCASE.
+
+---
+
+### FEATURE-003: Allergen Form Redesign + Halal/Nightshades + Nightshade Classifier
+
+| Field | Value |
+|-------|-------|
+| **Implemented** | 2026-06-11 |
+| **Status** | Implemented (v4.5) |
+| **Severity** | Feature |
+
+**Summary**: Reworked the allergen selection form and expanded the allergen set.
+
+**Changes**:
+1. **Layout**: Removed the v4.4 multi-group accordion. New layout = Dietary Preferences rows + Common Allergens rows (gluten, dairy, eggs) + a single "More allergens" dropdown for everything else. (See `allergen_management.md` §5.)
+2. **Removed `wheat`**: Subset of `gluten`; wheat→gluten synonym still routes wheat ingredients to gluten.
+3. **Added `halal`** (dietary preference, column `HALAL`) and **`nightshades`** (allergen, column `NIGHTSHADE FREE`).
+4. **`formatWarnings()`**: Added `halal` to the dietary-preference set and labels for `halal`/`nightshades`.
+5. **Nightshade classifier**: New `execution/classify_nightshades.py` reads the sheet via CSV export, scans ingredients, and emits paste-ready YES/NO for column AB. (See `directives/classify_nightshades.md`.)
+
+**Data model** (`allergens.ts`): Added `PRIMARY_ALLERGEN_IDS`, `PRIMARY_ALLERGENS`, `SECONDARY_ALLERGENS`; removed `ALLERGEN_GROUPS`, `GROUPED_ALLERGEN_IDS`, `STANDALONE_ALLERGENS`. `AllergenButton` gained `variant: "tile" | "row"`.
+
+**Files Modified**:
+- `src/lib/allergens.ts`, `src/components/AllergenGrid.tsx`, `src/components/AllergenButton.tsx`, `src/lib/filter-menu.ts`, `src/app/globals.css`
+- `execution/classify_nightshades.py` (new)
+
+**Edge cases (nightshade classification)**:
+- Counts as nightshade: tomato, potato (not sweet potato/kumara), capsicum/peppers (NOT black/white peppercorns), chili/chilli, paprika, cayenne, eggplant/aubergine, aleppo pepper.
+- Cross-check guard: if the sheet already marks `CAPSICUM FREE = NO` or `CHILI FREE = NO`, the item is forced to `NIGHTSHADE FREE = NO`.
+
+**No write credentials**: The project has no Google write auth (read-only CSV export). The classifier outputs a paste-ready column; writing back to the sheet is manual unless a service account is added. (See `classify_nightshades.md` §Limitations.)
+
+---
+
+### FEATURE-004: Chef Substitutions / "Can be modified" section
+
+| Field | Value |
+|-------|-------|
+| **Implemented** | 2026-06 |
+| **Status** | Implemented (local; needs Netlify redeploy for prod) |
+| **Severity** | Feature |
+
+**Summary**: Dishes that contain an allergen (normally excluded) are "rescued" into a new
+**"Can be modified for you"** results section when the chef has supplied a specific swap or removal.
+Read deterministically from a Google Sheet tab — **no LLM at request time**.
+
+**How it works**: A second tab ("Substitutions") lists, per dish: `Action` (Remove/Substitute),
+`Ingredient`, `Substitute`, `Solves` (allergen ids), and introduced allergens. When a dish is
+excluded, the filter rescues it only if **every** triggering allergen has a viable modification whose
+introduced allergens don't conflict with the diner's other selections. Surfaces for all severities
+with the "subject to kitchen approval" disclaimer.
+
+**Files Added**: `src/lib/substitutions.ts`, `directives/substitutions.md`,
+`directives/google_sheet_data_source.md`, `kisa_substitutions_template.csv`,
+`execution/validate_substitutions.py`.
+**Files Modified**: `google-sheets.ts` (`fetchSubstitutionsFromSheets` + generic `fetchSheetTab(gid)`),
+`menu-service.ts` (`getSubstitutions`), `filter-menu.ts` (`modifiableItems` + rescue), `route.ts`
+(`modifiedItems`), `MenuResults.tsx`, `MenuItem.tsx`, `AccordionSection.tsx`, `globals.css`.
+
+**Config**: `GOOGLE_SUBSTITUTIONS_GID` (the tab's gid). Unset → feature dormant.
+
+**Data gotcha (hit in testing)**: a substitution only fires if the menu marks the dish as
+*containing* the allergen (`… FREE = NO`). If the menu says `… FREE = YES`, the dish is already
+"safe" and the swap row does nothing — keep the menu flags and substitution rows consistent.
+
+**Related**: `directives/substitutions.md`, `directives/google_sheet_data_source.md`.
+
+---
+
+### BUG-010: Entire menu empty / every selection returns 0 results
+
+| Field | Value |
+|-------|-------|
+| **Reported** | 2026-06 |
+| **Status** | Fixed |
+| **Severity** | Critical |
+
+**Summary**: On the live site, selecting any allergen (e.g. Vegan) returned **no menu items at all**.
+
+**Symptoms**: `/api/submit` returns `meta.totalItems: 0` for every selection.
+
+**Root Cause**: The menu tab's name column kept getting renamed in the Sheet (`Item` → `Dish` →
+`Element`). `menu-service.ts` read the name only from a hard-coded header, so every row got a blank
+name and was dropped by `.filter(item => item.name)` → empty menu.
+
+**Fix (final, future-proof)**: Read the dish name from **column A by position**, whatever its header —
+`name: raw.Item || raw.Dish || raw[Object.keys(raw)[0]] || ""` in `transformMenuItem`
+(`menu-service.ts`). (Interim fix had only added `Dish`; that broke again on `Element`.) Validator
+(`validate_substitutions.py`) reads the first column likewise. **Renaming column A no longer breaks
+the menu** — just keep the dish name in the first column.
+
+**Files Modified**: `ai-llergy-webapp/src/lib/menu-service.ts`, `execution/validate_substitutions.py`.
+
+**Prevention**: See `directives/google_sheet_data_source.md` §5. Diagnose menu outages by fetching the
+no-gid CSV export and checking the header + `meta.totalItems` before assuming a code bug.
+
+**Test Case**:
+```bash
+curl -s -X POST http://localhost:3000/api/submit -H "Content-Type: application/json" \
+  -d '{"allergens":[]}' | python -c "import sys,json;print(json.load(sys.stdin)['meta']['totalItems'])"
+# Expect ~29-30, not 0
+```
+
+---
+
+### BUG-011: Long verbatim ingredient lists clipped in the results card
+
+| Field | Value |
+|-------|-------|
+| **Reported** | 2026-06 |
+| **Status** | Fixed |
+| **Severity** | Medium |
+
+**Summary**: After ingredients were switched to full **verbatim** lists from the chef's PDF, the
+expanded ingredient text overflowed/cut off in the post-submit menu card.
+
+**Root Cause**: `.menu-item__ingredients-wrapper--open` had `max-height: 200px` + `overflow: hidden`.
+Short summaries fit; long verbatim lists (Falafel, Rocky Road ~300px) were clipped.
+
+**Fix** (`globals.css`): `max-height: 600px`, `overflow-y: auto` (scroll instead of clip),
+`overflow-wrap: break-word`.
+
+**Files Modified**: `ai-llergy-webapp/src/app/globals.css`.
+
+**Prevention**: When data length can grow (verbatim ingredients), avoid tight fixed `max-height` with
+`overflow:hidden`; use a generous cap + `overflow:auto`.
+
+---
+
+### BUG-012: Substitution "introduces" safety guard silently disabled
+
+| Field | Value |
+|-------|-------|
+| **Reported** | 2026-06 |
+| **Status** | Fixed |
+| **Severity** | High (safety) |
+
+**Summary**: The guard that prevents recommending a swap which introduces an allergen the diner
+avoids (e.g. wheat→almond-flour for a tree-nut-allergic diner) would stop working.
+
+**Root Cause**: The Substitutions tab's `Introduces` column was renamed to **`Introduces allergy`**
+(plus an `introduces ingredient` column added). The parser read `row.Introduces` only, so introduced
+allergens parsed as empty → the conflict check always passed → unsafe swaps could be offered.
+
+**Fix** (`substitutions.ts`): read the introduced-allergen cell from any header containing
+"introduc" + "allerg" (so `Introduces` or `Introduces allergy`); ignore `introduces ingredient`.
+Validator updated to match.
+
+**Files Modified**: `ai-llergy-webapp/src/lib/substitutions.ts`, `execution/validate_substitutions.py`.
+
+**Prevention**: Pattern 6 (Sheet schema drift). Safety-critical columns must be matched tolerantly.
+
+**Test Case**:
+```bash
+# Pita's only gluten swap introduces tree nuts -> must NOT appear when treenuts is selected
+curl -s -X POST http://localhost:3000/api/submit -H "Content-Type: application/json" \
+ -d '{"allergens":[{"id":"gluten","type":"allergy"},{"id":"treenuts","type":"allergy"}]}' \
+ | python -c "import sys,json;print('Pita' in [i['name'] for i in json.load(sys.stdin)['modifiedItems']])"
+# Expect: False
+```
+
+---
+
+### Pattern 6: Google Sheet schema drift breaks the app
+
+**Problem**: The live data source is an owner/chef-editable Google Sheet. Renaming, removing, or
+reordering columns — or changing which tab is first — has repeatedly broken the app silently (empty
+menus, dead filters, disabled safety guards). This is now the **most common incident class** here.
+
+**Examples seen**: `Item`→`Dish` (BUG-010), `Introduces`→`Introduces allergy` (BUG-012), `Halal`
+title-case vs `HALAL` (BUG-009), `WHEAT FREE` deleted, `HALAL`/`NIGHTSHADE FREE` added, and a dish
+flagged `GLUTEN FREE=YES` while also carrying a "make it gluten-free" substitution row (FEATURE-004).
+
+**Mitigations applied**:
+1. Tolerant parsing for the highest-churn columns (name = `Item`/`Dish`; introduces =
+   `Introduces`/`Introduces allergy`).
+2. Unknown columns are ignored (adding `HALAL`/`NIGHTSHADE FREE` doesn't crash anything).
+3. `allergens.ts` is the single source of truth — a column only filters if registered there with an
+   **exact, case-sensitive** `columnName`.
+4. `execution/validate_substitutions.py` checks the subs tab against the menu before publishing.
+
+**Still fragile**: arbitrary allergen-column renames, deleting the name column, or making a non-menu
+tab the first tab. See `directives/google_sheet_data_source.md` §5.
+
+**Diagnosis first step** — inspect the raw export, don't assume a code bug:
+```bash
+curl -sL "https://docs.google.com/spreadsheets/d/<ID>/export?format=csv" | head -1
+```
+
+---
+
+### BUG-013: Substitutions tab schema overhaul broke the "Can be modified" feature
+
+| Field | Value |
+|-------|-------|
+| **Reported** | 2026-06 |
+| **Status** | Fixed |
+| **Severity** | High |
+
+**Summary**: After the menu column-A rename (BUG-010), the "Can be modified" section was empty even
+though substitution rows existed.
+
+**Root Cause**: Mosaic restructured the **whole Substitutions tab** into a richer schema —
+`Dish, Action, Element, Element ingredient(s), Substitute Element (name or NO),
+Substitute Element ingredient(s), Solves allergy, Introduces allergy (if substitution)`. The parser
+keyed off `Solves` (now `Solves allergy`), so `parseSubstitutionRow` saw zero solved allergens and
+discarded every row → no rescues.
+
+**Fix**: Replaced fixed header lookups with a tolerant `pickCell` keyword matcher in `substitutions.ts`
+(and mirrored it in `validate_substitutions.py`):
+- Ingredient ← `Ingredient`/`Element`; Substitute ← `Substitute`/`Substitute Element (name…)` with
+  fallback to a `Substitute … ingredient(s)` column (`NO`/blank = none);
+- Solves ← any header containing "solve"; Introduces ← any header containing "introduc"+"allerg".
+
+Verified live: gluten → Pita/Boreks/Lemon Tart rescued; gluten+treenuts hides Pita (guard);
+garlic → Hummus. (Some current rows are placeholder data on Mosaic's side, e.g. `x,y,z` — chef to
+replace with real swaps.)
+
+**Files Modified**: `ai-llergy-webapp/src/lib/substitutions.ts`, `execution/validate_substitutions.py`.
+
+**Prevention**: Pattern 6. Keep subs headers keyword-recognizable (must contain "solve"; introduced
+column must contain "introduc"+"allerg"). Full mapping in `directives/substitutions.md`.
+

@@ -120,17 +120,24 @@ The backend replaces a previous Make.com automation that was too slow (5-15 seco
 
 ## 4. Allergen Mapping
 
-### Form ID → Sheet Column (Full List - v2.2)
+### Form ID → Sheet Column (Full List - v4.5)
+
+> **v4.5**: Removed `wheat` (subset of `gluten`). Added `halal` and `nightshades`.
+> Note the sheet's **inconsistent header casing**: dietary columns are Title Case
+> (`Vegetarian`, `Vegan`) but `HALAL` and the `* FREE` columns are UPPERCASE.
+> `columnName` in `allergens.ts` must match the header **exactly, case included**
+> (see BUG-009).
 
 | Form ID | Sheet Column | Status | Notes |
 |---------|--------------|--------|-------|
 | `vegetarian` | Vegetarian | **Active** | Dietary preference |
 | `vegan` | Vegan | **Active** | Dietary preference |
+| `halal` | HALAL | **Active** | Dietary preference (v4.5; header is UPPERCASE) |
 | `peanuts` | PEANUT FREE | Pending | Big 9 - needs column in sheet |
 | `treenuts` | TREE NUT FREE | Pending | Big 9 - needs column in sheet |
-| `eggs` | EGG FREE | Pending | Big 9 - needs column in sheet |
+| `eggs` | EGG FREE | **Active** | |
 | `dairy` | DAIRY FREE | **Active** | |
-| `gluten` | GLUTEN FREE | **Active** | |
+| `gluten` | GLUTEN FREE | **Active** | Covers wheat |
 | `soy` | SOY FREE | **Active** | |
 | `fish` | FISH FREE | Pending | Big 9 - needs column in sheet |
 | `shellfish` | SHELLFISH FREE | Pending | Big 9 - needs column in sheet |
@@ -138,7 +145,6 @@ The backend replaces a previous Make.com automation that was too slow (5-15 seco
 | `almond` | ALMOND FREE | **Active** | |
 | `walnut` | WALNUT FREE | **Active** | |
 | `pistachio` | PISTACHIO FREE | **Active** | |
-| `wheat` | WHEAT FREE | Pending | EU allergen - needs column in sheet |
 | `mustard` | MUSTARD FREE | Pending | EU allergen - needs column in sheet |
 | `sulfites` | SULFITE FREE | Pending | EU allergen - needs column in sheet |
 | `garlic` | GARLIC FREE | **Active** | |
@@ -146,12 +152,17 @@ The backend replaces a previous Make.com automation that was too slow (5-15 seco
 | `celery` | CELERY FREE | Pending | EU allergen - needs column in sheet |
 | `chili` | CHILI FREE | **Active** | |
 | `capsicum` | CAPSICUM FREE | **Active** | |
+| `nightshades` | NIGHTSHADE FREE | **Active** | v4.5; column filled by `execution/classify_nightshades.py` |
 | `lupin` | LUPIN FREE | Pending | EU allergen - needs column in sheet |
 | `molluscs` | MOLLUSC FREE | Pending | EU allergen - needs column in sheet |
 
 **Status Legend**:
-- **Active**: Column exists in Google Sheet, filtering works
-- **Pending**: Column needs to be added to Google Sheet; allergen is selectable but won't filter results
+- **Active**: Column exists in Google Sheet with data, filtering works
+- **Pending**: Column needs to be added to Google Sheet; allergen is selectable but uses AI fallback (hybrid filtering)
+
+> **Removed**: `wheat` / `WHEAT FREE` (v4.5). Wheat is a subset of gluten; the
+> `wheat → gluten` synonym in `interpret-allergy.ts` still routes wheat ingredients
+> to the gluten filter.
 
 ### Sheet Values
 
@@ -178,9 +189,9 @@ vegan      → "Can be made Vegan on request"
 vegetarian → "Can be made Vegetarian on request"
 ```
 
-**Implementation**:
+**Implementation** (v4.5 — `halal` added to the set):
 ```typescript
-const dietaryPreferences = new Set(["vegan", "vegetarian"]);
+const dietaryPreferences = new Set(["vegan", "vegetarian", "halal"]);
 
 return warnings.map((w) => {
   const label = allergenLabels[w] || w;
@@ -191,9 +202,12 @@ return warnings.map((w) => {
 });
 ```
 
+> The `allergenLabels` map also gained `halal: "Halal"` and `nightshades: "Nightshade"`
+> in v4.5 so warning text reads correctly if those columns ever use `CAN BE`.
+
 **Why this matters**: "Walnut-free" makes sense (removing walnuts), but "vegan-free" is nonsensical. You make something *vegan*, not *vegan-free*.
 
-**Common mistake**: If adding new dietary preferences (e.g., "halal", "kosher"), add them to the `dietaryPreferences` set to avoid the `-free` suffix bug.
+**Common mistake**: If adding new dietary preferences (e.g., "kosher"), add them to the `dietaryPreferences` set to avoid the `-free` suffix bug.
 
 ## 5. Custom Allergy Interpretation
 

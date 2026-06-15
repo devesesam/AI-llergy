@@ -71,10 +71,14 @@ function transformMenuItem(raw: RawMenuItem): MenuItem {
     }
   }
 
+  // Dish name: the sheet's first column, whatever it's headed. People keep
+  // renaming column A (Item → Dish → Element → ...), so don't depend on the
+  // header name — fall back to the first column's value. Explicit "Item"/"Dish"
+  // headers still take priority if present.
+  const firstColumnValue = raw[Object.keys(raw)[0]] || "";
+
   return {
-    // Accept either "Item" or "Dish" as the dish-name column header, so the
-    // menu tab can use the same "Dish" naming as the Substitutions tab.
-    name: raw.Item || raw.Dish || "",
+    name: (raw.Item || raw.Dish || firstColumnValue || "").trim(),
     ingredients: raw.Ingredients || "",
     price: parseFloat(raw.Price) || 0,
     allergenProfile,

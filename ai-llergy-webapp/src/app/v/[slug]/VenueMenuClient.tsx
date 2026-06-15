@@ -217,7 +217,7 @@ export default function VenueMenuClient({ venue, menuItems }: VenueMenuClientPro
         opacity: 0.5,
         marginTop: 'var(--spacing-lg)'
       }}>
-        Powered by AI-llergy
+        Powered by AI-lergy
       </p>
     </div>
   )

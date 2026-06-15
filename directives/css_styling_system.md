@@ -135,13 +135,14 @@ All custom CSS uses BEM (Block Element Modifier):
 ```css
 .allergen-grid                     /* Main container */
 .allergen-grid__section-title      /* Section header (h3) */
-.allergen-grid__buttons            /* 2-column grid for tiles */
+.allergen-grid__buttons            /* 2-column grid for tiles (legacy/dietary fallback) */
 .allergen-grid__groups             /* Container for group dropdowns */
+.allergen-grid__rows               /* (v4.5) Vertical stack of full-width row buttons */
 ```
 
 #### Allergen Tiles (Buttons)
 ```css
-.allergen-option                   /* Tile base - 2-col grid, aspect-ratio */
+.allergen-option                   /* Tile base - square, aspect-ratio 1/0.85, column layout */
 .allergen-option .icon             /* Large centered emoji */
 .allergen-option .label            /* Text below icon */
 .allergen-option:hover             /* Hover lift effect */
@@ -151,6 +152,27 @@ All custom CSS uses BEM (Block Element Modifier):
 .allergen-option.selected--life_threatening  /* Red bg */
 .allergen-option.selected--pending      /* Gray pending state */
 ```
+
+#### Allergen Rows (v4.5 — Dietary Preferences & Common Allergens)
+```css
+.allergen-grid__rows .allergen-option        /* Full-width horizontal row (overrides square base) */
+.allergen-grid__rows .allergen-option .icon  /* Smaller inline icon (1.25em) */
+.allergen-grid__rows .allergen-option .label /* Centred label */
+```
+
+> **⚠️ Specificity gotcha (BUG-008)** — Why these rules are scoped under
+> `.allergen-grid__rows` instead of using a `.allergen-option--row` modifier:
+> a single BEM modifier class (`.allergen-option--row`) has the **same
+> specificity (0,1,0)** as the base `.allergen-option` rule. Because the base
+> rule appears **later** in `globals.css`, it won the tie and kept re-imposing
+> `aspect-ratio: 1 / 0.85` + `flex-direction: column` → the rows rendered as big
+> squares. Scoping under the parent (`.allergen-grid__rows .allergen-option` =
+> 0,2,0) makes the row rules win regardless of source order. The
+> `AllergenButton` `variant="row"` prop still emits an `allergen-option--row`
+> class as a semantic hook, but the *styling* hangs off the container selector.
+> **Lesson**: a BEM `--modifier` does NOT out-specify its base block; when an
+> override must beat a later same-specificity rule, raise specificity (parent
+> scope) or move it after the base rule.
 
 #### Allergen Groups (Expandable)
 ```css
@@ -593,6 +615,11 @@ grep -n "new-class" ai-llergy-webapp/src/app/globals.css
 - **Known Issues**: `directives/known_issues_and_fixes.md` - BUG-003 CSS regression, BUG-004 spinner, BUG-005 desktop width
 
 ## 11. Version History
+
+### v4.5 (2026-06-11)
+- **Allergen rows**: Added `.allergen-grid__rows` + `.allergen-grid__rows .allergen-option` for full-width horizontal row buttons (Dietary Preferences + Common Allergens).
+- **Specificity fix (BUG-008)**: Row styles are scoped under the container, not a `--row` modifier, so they beat the later same-specificity base `.allergen-option` rule. See §5 "Specificity gotcha".
+- **Centred labels**: Row buttons use `justify-content: center` + `text-align: center`.
 
 ### v4.4 (2026-02-20)
 - **Other Allergens Dropdown**: "Other Allergens" section now uses `AllergenGroup` component

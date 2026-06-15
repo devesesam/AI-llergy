@@ -186,7 +186,7 @@ export default function Home() {
               height={60}
               className="logo"
             />
-            <h1>AI-llergy</h1>
+            <h1>AI-lergy</h1>
           </header>
 
           <MenuResults
@@ -231,7 +231,7 @@ export default function Home() {
             height={60}
             className="logo"
           />
-          <h1>AI-llergy</h1>
+          <h1>AI-lergy</h1>
           <p className="subtitle">Select allergens to avoid</p>
         </header>
 

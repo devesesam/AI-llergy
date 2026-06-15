@@ -42,7 +42,7 @@ export default function AccountTopBar({ user, venues }: AccountTopBarProps) {
           href="/dashboard"
           className="text-xl font-heading text-text flex-shrink-0"
         >
-          AI-llergy
+          AI-lergy
         </Link>
 
         <div className="h-6 w-px bg-border mx-1 hidden sm:block" />

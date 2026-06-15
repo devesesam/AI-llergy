@@ -1,0 +1,6 @@
+Dish,Action,Ingredient,Substitute,Solves,Introduces
+Mozzarella Boreks,Substitute,Wheat flour,Gluten-free flour blend,"gluten,wheat",
+Lemon Tart,Substitute,Wheat pastry,Gluten-free pastry,"gluten,wheat",
+Hummus,Remove,Garlic,,garlic,
+Charcoal Mushrooms,Remove,Almond garnish,,"almond,treenuts",
+Pita,Substitute,Wheat flour,Almond flour,"gluten,wheat","almond,treenuts"

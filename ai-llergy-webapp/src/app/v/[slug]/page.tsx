@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: PageProps) {
     .single() as { data: VenueNameOnly | null }
 
   return {
-    title: data?.name ? `${data.name} | AI-llergy` : 'Menu | AI-llergy',
+    title: data?.name ? `${data.name} | AI-lergy` : 'Menu | AI-lergy',
     description: `Filter the menu at ${data?.name || 'this venue'} by your dietary requirements and allergies`,
   }
 }

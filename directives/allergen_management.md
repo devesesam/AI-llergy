@@ -29,22 +29,35 @@ Adding a new allergen requires updating definitions and synonyms. New allergens 
 | `AllergenTag.tsx` | Removable allergen tag chip (v2.4) | `ai-llergy-webapp/src/components/AllergenTag.tsx` |
 | `SelectionSummary.tsx` | Results display grouped by severity (v3.0) | `ai-llergy-webapp/src/components/SelectionSummary.tsx` |
 | `api/interpret/route.ts` | AI interpretation endpoint (v2.4) | `ai-llergy-webapp/src/app/api/interpret/route.ts` |
-| Google Sheet | Menu data with allergen columns | Sheet ID: `1HNWCErJzCBRfy-oPOqPgg1UYYbhOkD5tuVrLWevryeU` |
+| Google Sheet | Menu data with allergen columns | Set via `GOOGLE_SHEET_ID` env var. Current (Kisa): `1xxS6NRa16fptx3c4CJ5-V6mp-yDIHDGb7RnLx03isaw`. Old sample: `1HNWCErJzCBRfy-oPOqPgg1UYYbhOkD5tuVrLWevryeU` |
+| `execution/classify_nightshades.py` | Auto-classifies the NIGHTSHADE FREE column from ingredients (v4.5) | `execution/classify_nightshades.py` |
 
-## 3. Current Allergen List (v2.2)
+## 3. Current Allergen List (v4.5)
+
+> **v4.5 changes**: Removed `wheat` (it is a subset of `gluten`; the wheat→gluten
+> synonym still routes wheat ingredients to gluten). Added `halal` (dietary
+> preference) and `nightshades` (allergen). See §13 Version History.
 
 ### Tier 1: Dietary Preferences
 | ID | Label | Icon | Sheet Column | Status |
 |----|-------|------|--------------|--------|
 | `vegetarian` | Vegetarian | :leafy_green: | Vegetarian | Active |
 | `vegan` | Vegan | :broccoli: | Vegan | Active |
+| `halal` | Halal | ☪️ | HALAL | Active |
+
+> **Sheet column casing (critical)**: `columnName` must match the sheet header
+> **exactly, including case** — lookups are case-sensitive. The Halal header in
+> the Kisa sheet is `HALAL` (uppercase), so `columnName` is `"HALAL"`, NOT
+> `"Halal"`. `Vegetarian`/`Vegan` are Title Case in the sheet and match as-is.
+> A casing mismatch silently drops the column → the allergen falls back to slow
+> AI inference instead of using the YES/NO data. (See BUG-009.)
 
 ### Tier 2: Big 9 Allergens (Most Common)
 | ID | Label | Icon | Sheet Column | Status |
 |----|-------|------|--------------|--------|
 | `peanuts` | Peanuts | :peanuts: | PEANUT FREE | **Pending** |
 | `treenuts` | Tree Nuts | :chestnut: | TREE NUT FREE | **Pending** |
-| `eggs` | Eggs | :egg: | EGG FREE | **Pending** |
+| `eggs` | Eggs | :egg: | EGG FREE | Active |
 | `dairy` | Dairy | :glass_of_milk: | DAIRY FREE | Active |
 | `gluten` | Gluten | :ear_of_rice: | GLUTEN FREE | Active |
 | `soy` | Soy | :seedling: | SOY FREE | Active |
@@ -62,7 +75,6 @@ Adding a new allergen requires updating definitions and synonyms. New allergens 
 ### Tier 4: Less Common / Regional
 | ID | Label | Icon | Sheet Column | Status |
 |----|-------|------|--------------|--------|
-| `wheat` | Wheat | :ear_of_rice: | WHEAT FREE | **Pending** |
 | `mustard` | Mustard | :yellow_circle: | MUSTARD FREE | **Pending** |
 | `sulfites` | Sulfites | :test_tube: | SULFITE FREE | **Pending** |
 | `garlic` | Garlic | :garlic: | GARLIC FREE | Active |
@@ -70,14 +82,19 @@ Adding a new allergen requires updating definitions and synonyms. New allergens 
 | `celery` | Celery | :leafy_green: | CELERY FREE | **Pending** |
 | `chili` | Chili | :hot_pepper: | CHILI FREE | Active |
 | `capsicum` | Capsicum | :hot_pepper: | CAPSICUM FREE | Active |
+| `nightshades` | Nightshades | 🍅 | NIGHTSHADE FREE | Active |
 | `lupin` | Lupin | :cherry_blossom: | LUPIN FREE | **Pending** |
 | `molluscs` | Molluscs | :squid: | MOLLUSC FREE | **Pending** |
 
 **Status Legend**:
-- **Active**: Sheet column exists, filtering uses fast column-based lookup (~50ms)
+- **Active**: Sheet column exists with data, filtering uses fast column-based lookup (~50ms)
 - **Pending**: Sheet column missing; filtering uses AI-based ingredient analysis (~2-5s)
 
 > **Note (v2.4.4)**: "Pending" allergens now WORK via AI filtering! They're slower but functional. When chefs add the column to the Google Sheet, filtering automatically switches to fast column-based mode.
+
+> **Nightshades data**: The `NIGHTSHADE FREE` column is populated by the
+> `execution/classify_nightshades.py` script (ingredient-based YES/NO). Re-run it
+> whenever the menu changes. See `directives/classify_nightshades.md`.
 
 ## 4. How to Add a New Allergen
 
@@ -131,36 +148,46 @@ Update the allergen tables in:
 - This file (`directives/allergen_management.md`)
 - `directives/backend_menu_filter.md` (Section 4)
 
-## 5. Allergen Groups (v4.4)
+## 5. Form Layout (v4.5)
 
-Allergens are organized into collapsible dropdown groups in the UI for better usability. All allergen categories (except Dietary Preferences) now use the same accordion-style dropdown pattern.
+> **Breaking change (v4.5)**: The multi-group accordion layout (Nuts / Seafood /
+> Aromatics / Spicy / Other) from v4.4 was **removed**. The form is now a flat
+> "primary rows + one dropdown" design. `ALLERGEN_GROUPS`, `GROUPED_ALLERGEN_IDS`,
+> and `STANDALONE_ALLERGENS` were deleted from `allergens.ts`. The
+> `AllergenGroup` *component* and the `AllergenGroup` *interface* are retained —
+> the single "More allergens" dropdown reuses them.
 
-### Current Groups
+The selection form (`AllergenGrid.tsx`, used by both `/` and `/v/[slug]`) renders
+three sections, top to bottom:
 
-| Group ID | Label | Members | Icon | Type |
-|----------|-------|---------|------|------|
-| `nuts` | Nuts | peanuts, treenuts, almond, walnut, pistachio | 🥜 | Defined in `ALLERGEN_GROUPS` |
-| `seafood` | Seafood | fish, shellfish, molluscs | 🦐 | Defined in `ALLERGEN_GROUPS` |
-| `aromatics` | Aromatics | garlic, onion, celery | 🧄 | Defined in `ALLERGEN_GROUPS` |
-| `spicy` | Spicy | chili, capsicum | 🌶️ | Defined in `ALLERGEN_GROUPS` |
-| `other` | Other | eggs, dairy, gluten, soy, sesame, wheat, mustard, sulfites, lupin | 🍽️ | Inline in `AllergenGrid.tsx` |
+| Section | Source const | Render style |
+|---------|-------------|--------------|
+| Dietary Preferences | `DIETARY_PREFERENCES` | Full-width **rows** (`variant="row"`) |
+| Common Allergens | `PRIMARY_ALLERGENS` | Full-width **rows** (`variant="row"`) |
+| More allergens | `SECONDARY_ALLERGENS` | One collapsible **dropdown** (tiles inside) |
 
-### Dietary Preferences (Standalone)
-- **Vegetarian**, **Vegan** - Displayed as individual tiles (not in dropdown)
-
-### Other Allergens Group (v4.4)
-As of v4.4, the "Other Allergens" section now uses the same dropdown accordion pattern as the named groups. This provides UI consistency and reduces visual clutter on initial page load.
-
-**Implementation**: The "Other" group is created inline in `AllergenGrid.tsx` rather than being defined in `ALLERGEN_GROUPS`:
+### Primary vs Secondary split (`allergens.ts`)
 
 ```typescript
-// In AllergenGrid.tsx
+// Shown directly as rows, in this order:
+export const PRIMARY_ALLERGEN_IDS = ["gluten", "dairy", "eggs"] as const;
+export const PRIMARY_ALLERGENS = /* ALLERGENS filtered/ordered to the above */;
+
+// Everything else → the "More allergens" dropdown:
+export const SECONDARY_ALLERGENS = ALLERGENS.filter(a => !PRIMARY_ALLERGEN_IDS.includes(a.id));
+```
+
+### The "More allergens" dropdown (`AllergenGrid.tsx`)
+
+Built inline by reusing the `AllergenGroup` component with a synthetic group:
+
+```typescript
 <AllergenGroup
   group={{
-    id: "other",
-    label: "Other",
-    icon: "🍽️",
-    members: STANDALONE_ALLERGENS.map(a => a.id),
+    id: "more",
+    label: "More allergens",
+    icon: "➕",
+    members: SECONDARY_ALLERGENS.map(a => a.id),
   }}
   pendingAllergenIds={pendingAllergenIds}
   selectedAllergens={selectedAllergens}
@@ -168,30 +195,21 @@ As of v4.4, the "Other Allergens" section now uses the same dropdown accordion p
 />
 ```
 
-**Why inline?** The "Other" group is computed from `STANDALONE_ALLERGENS` (allergens not in any named group). Defining it inline keeps the separation clear and automatically includes any allergens added in the future that don't belong to a specific group.
+### Row vs tile rendering (`AllergenButton.tsx`)
 
-### Group Definition in `allergens.ts`
+`AllergenButton` takes a `variant?: "tile" | "row"` prop (default `"tile"`):
+- `"tile"` → square grid cell (used inside the dropdown).
+- `"row"` → full-width horizontal row (used for Dietary Preferences & Common Allergens).
 
-```typescript
-export const ALLERGEN_GROUPS: AllergenGroup[] = [
-  { id: "nuts", label: "Nuts", icon: "🥜", members: ["peanuts", "treenuts", "almond", "walnut", "pistachio"] },
-  { id: "seafood", label: "Seafood", icon: "🦐", members: ["fish", "shellfish", "molluscs"] },
-  { id: "aromatics", label: "Aromatics", icon: "🧄", members: ["garlic", "onion", "celery"] },
-  { id: "spicy", label: "Spicy", icon: "🌶️", members: ["chili", "capsicum"] },
-];
-```
+The row styling is **scoped under `.allergen-grid__rows`** in `globals.css` so it
+out-ranks the base square `.allergen-option` rule. See
+`directives/css_styling_system.md` §5 and BUG-008 for the specificity gotcha.
 
-### Adding a New Group
+### How to move an allergen to/from the primary rows
 
-1. Add the group definition to `ALLERGEN_GROUPS` in `allergens.ts`
-2. Ensure all member allergen IDs exist in `ALLERGENS` array
-3. No component changes needed - grid auto-renders new groups
-
-### Modifying Group Members
-
-1. Edit the `members` array in the relevant group
-2. Allergens can only belong to ONE group
-3. Allergens not in any group appear in "Other Allergens" section
+1. Edit `PRIMARY_ALLERGEN_IDS` in `allergens.ts` (order here = display order of the rows).
+2. That's it — `SECONDARY_ALLERGENS` recomputes automatically, so the moved item
+   leaves/joins the dropdown with no other changes.
 
 ## 6. Severity Selection System (v3.0)
 
@@ -336,21 +354,19 @@ Selections are grouped into three sections:
 
 Custom tags also display with their assigned severity.
 
-## 7. How to Reorder Allergens
+## 7. How to Reorder Allergens (v4.5)
 
-The display order is determined by the array order in `allergens.ts`:
+Display order is driven entirely by array order in `allergens.ts`:
 
-1. `DIETARY_PREFERENCES` array - displayed first (standalone)
-2. `ALLERGEN_GROUPS` - displayed in group order with dropdowns
-3. `STANDALONE_ALLERGENS` - allergens not in any group, displayed last
+1. `DIETARY_PREFERENCES` — Dietary Preferences rows (top)
+2. `PRIMARY_ALLERGENS` (derived from `PRIMARY_ALLERGEN_IDS`) — Common Allergens rows
+3. `SECONDARY_ALLERGENS` (derived: `ALLERGENS` minus primary) — "More allergens" dropdown, in `ALLERGENS` array order
 
-**Current order logic**:
-1. Dietary preferences (Vegetarian, Vegan) - standalone at top
-2. Grouped allergens (Nuts, Seafood, Aromatics, Spicy) - collapsible
-3. Standalone allergens (Eggs, Dairy, Gluten, etc.) - individual buttons
-
-To reorder groups, change the order in `ALLERGEN_GROUPS` array.
-To move an allergen between sections, add/remove from group `members` array.
+**To reorder:**
+- Within the dropdown → reorder the `ALLERGENS` array.
+- Within the Common Allergens rows → reorder `PRIMARY_ALLERGEN_IDS`.
+- Within Dietary Preferences → reorder `DIETARY_PREFERENCES`.
+- Move an item between rows and dropdown → add/remove its id in `PRIMARY_ALLERGEN_IDS`.
 
 ## 6. Synonym Reference
 
@@ -393,6 +409,11 @@ To move an allergen between sections, add/remove from group `members` array.
 |------------|----------|
 | vegetarian | veggie, no meat, meatless |
 | vegan | plant-based, plant based, no animal |
+| halal | halaal, zabiha, no pork, no alcohol |
+
+> **Nightshades synonyms** (in `ALLERGENS`, not dietary): nightshade, tomato,
+> potato, eggplant, aubergine, paprika. Added v4.5 so autocomplete recognises the
+> term; the `NIGHTSHADE FREE` column also filters it directly via column lookup.
 
 **Important**: Dietary preferences require special handling in `formatWarnings()`. See Section 7.
 
@@ -474,6 +495,16 @@ After adding/modifying allergens:
 - **Project**: See `directives/project_ai_llergy.md` for full changelog
 
 ## 13. Version History
+
+### v4.5 (2026-06-11)
+- **Form redesign**: Replaced the v4.4 multi-group accordion (Nuts/Seafood/Aromatics/Spicy/Other) with a flat layout — Dietary Preferences + Common Allergens (gluten, dairy, eggs) as full-width rows, everything else in a single "More allergens" dropdown.
+- **Removed `wheat`**: It is a subset of `gluten`. The wheat→gluten synonym mapping in `interpret-allergy.ts` still routes wheat ingredients to gluten, so detection is unchanged.
+- **Added `halal`** dietary preference (column `HALAL`) — also added to the `formatWarnings()` dietary set.
+- **Added `nightshades`** allergen (column `NIGHTSHADE FREE`), placed in the dropdown near chili/capsicum.
+- **Data model**: Added `PRIMARY_ALLERGEN_IDS`, `PRIMARY_ALLERGENS`, `SECONDARY_ALLERGENS`; removed `ALLERGEN_GROUPS`, `GROUPED_ALLERGEN_IDS`, `STANDALONE_ALLERGENS`. `AllergenButton` gained a `variant` prop.
+- **New tool**: `execution/classify_nightshades.py` auto-fills the NIGHTSHADE FREE column from ingredients. See `directives/classify_nightshades.md`.
+- **Bugs fixed**: BUG-008 (row buttons rendered as squares — CSS specificity), BUG-009 (Halal column case mismatch).
+- **Files Modified**: `allergens.ts`, `AllergenGrid.tsx`, `AllergenButton.tsx`, `filter-menu.ts` (formatWarnings), `globals.css`.
 
 ### v4.4 (2026-02-20)
 - **Other Allergens Dropdown**: Converted "Other Allergens" section from static grid to dropdown accordion
@@ -559,8 +590,10 @@ After adding/modifying allergens:
 
 ## 14. Future Work
 
-- [ ] Add Google Sheet columns for pending allergens (Peanuts, Eggs, Fish, etc.)
-- [ ] Consider adding: Corn, Coconut, Nightshades, FODMAP indicators
+- [ ] Add Google Sheet columns for pending allergens (Peanuts, Fish, etc.)
+- [x] ~~Consider adding: Nightshades~~ (Done in v4.5 — column + classifier script)
+- [x] ~~Add synonyms for `halal` and `nightshades` in `interpret-allergy.ts`~~ (Done in v4.5)
+- [ ] Consider adding: Corn, Coconut, Kosher, FODMAP indicators
 - [x] ~~Add allergen grouping UI (collapsible sections by tier)~~ (Done in v2.3)
 - [x] ~~Add allergen search/filter in form~~ (Done in v2.4 via autocomplete)
 - [ ] Add "Select All" quick action for groups (e.g., "Select All Nuts")
