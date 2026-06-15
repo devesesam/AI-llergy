@@ -2,6 +2,14 @@
 
 **Goal**: Use allergen severity levels (preference/allergy/life_threatening) to set confidence thresholds for menu filtering. Only display meals above the user's required confidence level based on how serious their allergen restriction is.
 
+> **⚠️ DORMANT (v4.7)**: The UI **no longer collects severity** — the submit-time
+> slider was removed (see `allergen_management.md` §6). Every selection now arrives
+> as `type: "allergy"` (`SeverityModal.tsx` `DEFAULT_TYPE`). This system only runs
+> for Supabase venues that have `allergen_confidence` scores (currently paused), so
+> in practice it is inactive; if reactivated it would apply the single `"allergy"`
+> threshold (>80%) to everything until per-selection severity collection is
+> reintroduced. The code below is retained and accurate for that future case.
+
 ## 1. Overview
 
 The confidence scoring system enables severity-aware filtering:

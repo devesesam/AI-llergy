@@ -39,7 +39,7 @@
         *   `AllergenButton.tsx`: Individual allergen toggle with type badge and pending state (v3.0)
         *   `AllergenGroup.tsx`: Collapsible allergen group dropdown (v2.3)
         *   `AllergenTypeModal.tsx`: **DEPRECATED** - Replaced by SeverityModal in v3.0
-        *   `SeverityModal.tsx`: Batch severity assignment modal with 3-level slider (v3.0)
+        *   `SeverityModal.tsx`: Submit-time **confirmation modal** (review list + responsibility checkbox). Severity slider removed in v4.7 — name kept for now though it no longer sets severity.
         *   `AutocompleteInput.tsx`: Tag-based allergen input with typeahead (v2.4, v2.6)
         *   `AllergenTag.tsx`: Removable allergen tag chip (v2.4)
         *   `CustomTagPill.tsx`: Removable custom restriction tag chip (v2.6)
@@ -80,6 +80,24 @@
     4.  Check browser console for errors.
 
 ## 4. Change Log & Issues
+
+### v4.7 - Severity Retired + Disclaimer/Brand Copy (2026-06-16)
+
+**Summary**: Simplified the submit flow and tidied user-facing copy.
+
+*   **Severity slider removed** from the submit-time modal (`SeverityModal.tsx`) — now a
+    confirmation-only step (review list + "I take full responsibility" checkbox + Confirm).
+    Selections default to `type: "allergy"`. Severity was collected but unused on the Google-Sheet
+    filtering path.
+*   **Results "Your Selections" flattened** (`SelectionSummary.tsx`) — single neutral pill list, no
+    severity grouping.
+*   **Disclaimer** (`DisclaimerModal.tsx`): new wording + "I Agree" → "I Understand".
+*   **Brand consistency**: all user-facing text unified to **AI-lergy** (single "l"), matching
+    ai-lergy.co.nz. Internal repo/package/dir names left as `ai-llergy`.
+*   **Dead code** left for a later pass: `.severity-slider*` / `.selection-pill--*` CSS, `SeverityType`
+    on selections, and the now-misnamed `SeverityModal`.
+*   **Related**: `allergen_management.md` §6, `frontend_results_display.md` §10,
+    `css_styling_system.md` §11, `known_issues_and_fixes.md` FEATURE-005.
 
 ### v4.6 - Kisa Real Menu + Chef Substitutions ("Can be modified") (2026-06)
 

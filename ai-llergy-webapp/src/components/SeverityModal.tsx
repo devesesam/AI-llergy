@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from "react";
 import {
-  Allergen,
   SelectedAllergen,
   CustomTag,
-  SeverityType,
-  SEVERITY_OPTIONS,
   getAllergenById,
 } from "@/lib/allergens";
+
+// Severity selection was removed from the UI (the value is no longer collected).
+// We still attach a type to each selection to satisfy downstream types; "allergy"
+// is the neutral default so real allergies are never shown as mere "preferences".
+const DEFAULT_TYPE = "allergy" as const;
 
 interface SeverityModalProps {
   isOpen: boolean;
@@ -34,8 +36,6 @@ export default function SeverityModal({
   onConfirm,
   onClose,
 }: SeverityModalProps) {
-  // Track severity for each item (default to "preference")
-  const [severityMap, setSeverityMap] = useState<Record<string, SeverityType>>({});
   // Track responsibility acknowledgment
   const [hasAgreed, setHasAgreed] = useState(false);
 
@@ -81,15 +81,10 @@ export default function SeverityModal({
     });
   });
 
-  // Initialize severity map and reset agreement when modal opens
+  // Reset agreement checkbox whenever the modal opens
   useEffect(() => {
     if (isOpen) {
-      const initialMap: Record<string, SeverityType> = {};
-      items.forEach((item) => {
-        initialMap[item.id] = "preference"; // Default to preference
-      });
-      setSeverityMap(initialMap);
-      setHasAgreed(false); // Reset agreement checkbox
+      setHasAgreed(false);
     }
   }, [isOpen, pendingAllergenIds, customAllergenIds, customTags]);
 
@@ -101,31 +96,18 @@ export default function SeverityModal({
     }
   };
 
-  const handleSeverityChange = (itemId: string, severity: SeverityType) => {
-    setSeverityMap((prev) => ({
-      ...prev,
-      [itemId]: severity,
-    }));
-  };
-
   const handleConfirm = () => {
-    // Build allergens array with severity
-    const allergens: SelectedAllergen[] = [];
-
-    // Combine pending and custom allergen IDs (deduplicated)
+    // Combine pending and custom allergen IDs (deduplicated), each with the
+    // default type (severity is no longer collected from the user).
     const allAllergenIds = [...new Set([...pendingAllergenIds, ...customAllergenIds])];
+    const allergens: SelectedAllergen[] = allAllergenIds.map((id) => ({
+      id,
+      type: DEFAULT_TYPE,
+    }));
 
-    allAllergenIds.forEach((id) => {
-      allergens.push({
-        id,
-        type: severityMap[id] || "preference",
-      });
-    });
-
-    // Build custom tags with severity
     const tagsWithSeverity: CustomTag[] = customTags.map((tag) => ({
       ...tag,
-      type: severityMap[tag.id] || "preference",
+      type: DEFAULT_TYPE,
     }));
 
     onConfirm(allergens, tagsWithSeverity);
@@ -135,9 +117,9 @@ export default function SeverityModal({
     <div className="modal-backdrop" onClick={handleBackdropClick}>
       <div className="severity-modal">
         <div className="severity-modal__header">
-          <h3 className="severity-modal__title">Set Severity Levels</h3>
+          <h3 className="severity-modal__title">Confirm your selections</h3>
           <p className="severity-modal__subtitle">
-            How serious is each restriction?
+            Please review the items you&apos;d like us to avoid.
           </p>
         </div>
 
@@ -147,22 +129,6 @@ export default function SeverityModal({
               <div className="severity-modal__item-info">
                 <span className="severity-modal__item-icon">{item.icon}</span>
                 <span className="severity-modal__item-name">{item.label}</span>
-              </div>
-              <div className="severity-slider">
-                <div className="severity-slider__labels">
-                  <span className="severity-slider__label severity-slider__label--preference">Preference</span>
-                  <span className="severity-slider__label severity-slider__label--allergy">Intolerance/Allergy</span>
-                  <span className="severity-slider__label severity-slider__label--life_threatening">Life Threatening</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="2"
-                  step="1"
-                  value={SEVERITY_OPTIONS.findIndex(opt => opt.value === severityMap[item.id])}
-                  onChange={(e) => handleSeverityChange(item.id, SEVERITY_OPTIONS[parseInt(e.target.value)].value)}
-                  className={`severity-slider__input severity-slider__input--${severityMap[item.id]}`}
-                />
               </div>
             </div>
           ))}

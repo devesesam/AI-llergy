@@ -24,158 +24,42 @@ export default function SelectionSummary({
     return null;
   }
 
-  // Separate by severity (ordered: life threatening, allergies, preferences)
-  const lifeThreatening = selectedAllergens.filter(s => s.type === "life_threatening");
-  const allergies = selectedAllergens.filter(s => s.type === "allergy");
-  const preferences = selectedAllergens.filter(s => s.type === "preference");
+  // Build a single flat list of pills. Severity grouping was removed (severity is
+  // no longer collected from the user), so all selections render together.
+  const pills: { key: string; icon: string; label: string }[] = [];
 
-  // Separate custom tags by severity
-  const lifeThreateningTags = customTags.filter(t => t.type === "life_threatening");
-  const allergyTags = customTags.filter(t => t.type === "allergy");
-  const preferenceTags = customTags.filter(t => t.type === "preference");
-  const unclassifiedTags = customTags.filter(t => !t.type);
+  // Known allergens chosen via buttons (and any custom-search allergens already merged in)
+  selectedAllergens.forEach(selection => {
+    const allergen = getAllergenById(selection.id);
+    if (allergen) {
+      pills.push({ key: `sel-${selection.id}`, icon: allergen.icon, label: allergen.label });
+    }
+  });
+
+  // Known allergens added via search that weren't already in selectedAllergens
+  uniqueCustomIds.forEach(id => {
+    const allergen = getAllergenById(id);
+    if (allergen) {
+      pills.push({ key: `custom-${id}`, icon: allergen.icon, label: allergen.label });
+    }
+  });
+
+  // Free-form custom restrictions
+  customTags.forEach(tag => {
+    pills.push({ key: `tag-${tag.id}`, icon: "🏷️", label: tag.displayLabel });
+  });
 
   return (
     <div className="selection-summary">
       <h3 className="selection-summary__title">Your Selections</h3>
-
-      {lifeThreatening.length > 0 && (
-        <div className="selection-summary__group">
-          <span className="selection-summary__label selection-summary__label--life_threatening">
-            Life Threatening
+      <div className="selection-summary__pills">
+        {pills.map(pill => (
+          <span key={pill.key} className="selection-pill">
+            <span className="selection-pill__icon">{pill.icon}</span>
+            <span className="selection-pill__label">{pill.label}</span>
           </span>
-          <div className="selection-summary__pills">
-            {lifeThreatening.map(selection => {
-              const allergen = getAllergenById(selection.id);
-              if (!allergen) return null;
-              return (
-                <span
-                  key={selection.id}
-                  className="selection-pill selection-pill--life_threatening"
-                >
-                  <span className="selection-pill__icon">{allergen.icon}</span>
-                  <span className="selection-pill__label">{allergen.label}</span>
-                </span>
-              );
-            })}
-            {lifeThreateningTags.map(tag => (
-              <span
-                key={tag.id}
-                className="selection-pill selection-pill--life_threatening"
-              >
-                <span className="selection-pill__icon">🏷️</span>
-                <span className="selection-pill__label">{tag.displayLabel}</span>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {allergies.length > 0 && (
-        <div className="selection-summary__group">
-          <span className="selection-summary__label selection-summary__label--allergy">
-            Intolerance/Allergy
-          </span>
-          <div className="selection-summary__pills">
-            {allergies.map(selection => {
-              const allergen = getAllergenById(selection.id);
-              if (!allergen) return null;
-              return (
-                <span
-                  key={selection.id}
-                  className="selection-pill selection-pill--allergy"
-                >
-                  <span className="selection-pill__icon">{allergen.icon}</span>
-                  <span className="selection-pill__label">{allergen.label}</span>
-                </span>
-              );
-            })}
-            {allergyTags.map(tag => (
-              <span
-                key={tag.id}
-                className="selection-pill selection-pill--allergy"
-              >
-                <span className="selection-pill__icon">🏷️</span>
-                <span className="selection-pill__label">{tag.displayLabel}</span>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {preferences.length > 0 && (
-        <div className="selection-summary__group">
-          <span className="selection-summary__label selection-summary__label--preference">
-            Preferences
-          </span>
-          <div className="selection-summary__pills">
-            {preferences.map(selection => {
-              const allergen = getAllergenById(selection.id);
-              if (!allergen) return null;
-              return (
-                <span
-                  key={selection.id}
-                  className="selection-pill selection-pill--preference"
-                >
-                  <span className="selection-pill__icon">{allergen.icon}</span>
-                  <span className="selection-pill__label">{allergen.label}</span>
-                </span>
-              );
-            })}
-            {preferenceTags.map(tag => (
-              <span
-                key={tag.id}
-                className="selection-pill selection-pill--preference"
-              >
-                <span className="selection-pill__icon">🏷️</span>
-                <span className="selection-pill__label">{tag.displayLabel}</span>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {uniqueCustomIds.length > 0 && (
-        <div className="selection-summary__group">
-          <span className="selection-summary__label selection-summary__label--custom">
-            Added via Search
-          </span>
-          <div className="selection-summary__pills">
-            {uniqueCustomIds.map(id => {
-              const allergen = getAllergenById(id);
-              if (!allergen) return null;
-              return (
-                <span
-                  key={id}
-                  className="selection-pill selection-pill--custom"
-                >
-                  <span className="selection-pill__icon">{allergen.icon}</span>
-                  <span className="selection-pill__label">{allergen.label}</span>
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {unclassifiedTags.length > 0 && (
-        <div className="selection-summary__group">
-          <span className="selection-summary__label selection-summary__label--custom-tag">
-            Custom Restrictions
-          </span>
-          <div className="selection-summary__pills">
-            {unclassifiedTags.map(tag => (
-              <span
-                key={tag.id}
-                className="selection-pill selection-pill--custom-tag"
-              >
-                <span className="selection-pill__icon">🏷️</span>
-                <span className="selection-pill__label">{tag.displayLabel}</span>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+        ))}
+      </div>
     </div>
   );
 }

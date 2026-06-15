@@ -211,7 +211,23 @@ out-ranks the base square `.allergen-option` rule. See
 2. That's it — `SECONDARY_ALLERGENS` recomputes automatically, so the moved item
    leaves/joins the dropdown with no other changes.
 
-## 6. Severity Selection System (v3.0)
+## 6. Severity Selection System (v3.0) — ⚠️ RETIRED in v4.7
+
+> **RETIRED (v4.7)**: The severity UI was **removed**. The submit-time modal no
+> longer shows the severity slider — it is now a **confirmation-only** step (review
+> list of selections + responsibility checkbox + Confirm). The results
+> "Your Selections" panel is now a **single flat list** (no severity grouping).
+>
+> Severity was never used for filtering on the Google-Sheet path, so nothing
+> functional changed. The `SeverityType` field still exists on `SelectedAllergen`
+> for type compatibility; the modal hard-codes every selection to `type: "allergy"`
+> (the neutral default — see `SeverityModal.tsx` `DEFAULT_TYPE`). The slider,
+> `severityMap` state, and per-item severity grouping were deleted from the
+> components. The `.severity-slider*` and `.selection-pill--*` severity CSS remain
+> in `globals.css` but are now unused.
+>
+> The rest of this section documents the **historical** severity system (v3.0–v4.3)
+> for reference and in case severity collection is ever reintroduced.
 
 Users assign severity levels to their selections in a batch modal before submission. This replaced the per-click modal popup from v2.3.
 
@@ -495,6 +511,13 @@ After adding/modifying allergens:
 - **Project**: See `directives/project_ai_llergy.md` for full changelog
 
 ## 13. Version History
+
+### v4.7 (2026-06-16)
+- **Severity UI retired**: Removed the severity slider from the submit-time modal (`SeverityModal.tsx`) — it is now a confirmation-only step (review list + responsibility checkbox + Confirm). Removed `severityMap` state, `handleSeverityChange`, slider markup, and the `SEVERITY_OPTIONS`/`SeverityType` imports. Selections default to `type: "allergy"` (`DEFAULT_TYPE`).
+- **Flat results summary**: `SelectionSummary.tsx` now renders one flat "Your Selections" pill list instead of grouping by severity (Life Threatening / Allergy / Preference / Added-via-Search / Custom).
+- **Why**: Severity was collected but unused (Google-Sheet path filters by column, not confidence). See `confidence_scoring.md` for the dormant severity-threshold logic.
+- **Also in this release (UI copy)**: New disclaimer wording + "I Agree" → "I Understand" (`DisclaimerModal.tsx`); brand name unified to **AI-lergy** (single "l") across all user-facing strings.
+- **Unused now**: `.severity-slider*` and `.selection-pill--*`/`.selection-summary__label--*` CSS, and `SeverityType` on selections — left in place (no functional impact). Candidate for a future cleanup pass.
 
 ### v4.5 (2026-06-11)
 - **Form redesign**: Replaced the v4.4 multi-group accordion (Nuts/Seafood/Aromatics/Spicy/Other) with a flat layout — Dietary Preferences + Common Allergens (gluten, dairy, eggs) as full-width rows, everything else in a single "More allergens" dropdown.

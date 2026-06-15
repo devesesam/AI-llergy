@@ -1391,3 +1391,41 @@ replace with real swaps.)
 **Prevention**: Pattern 6. Keep subs headers keyword-recognizable (must contain "solve"; introduced
 column must contain "introduc"+"allerg"). Full mapping in `directives/substitutions.md`.
 
+---
+
+### FEATURE-005: Severity UI Retired + Disclaimer/Brand Copy
+
+| Field | Value |
+|-------|-------|
+| **Implemented** | 2026-06-16 |
+| **Status** | Implemented (v4.7) |
+| **Severity** | Feature |
+
+**Summary**: Removed the per-allergen severity slider from the submit-time modal and flattened the
+results "Your Selections" list. Also refreshed the disclaimer copy and unified the brand spelling.
+
+**Changes**:
+1. **Severity slider removed** (`SeverityModal.tsx`): the modal is now a confirmation-only step —
+   review list of selections + "I take full responsibility" checkbox + Confirm. Removed `severityMap`
+   state, `handleSeverityChange`, the slider markup, and `SEVERITY_OPTIONS`/`SeverityType` imports.
+   Every selection is hard-coded to `type: "allergy"` (`DEFAULT_TYPE`) so downstream types are
+   satisfied. (`"allergy"` chosen over `"preference"` so a real allergy is never labelled a mere
+   preference.)
+2. **Flat results summary** (`SelectionSummary.tsx`): one neutral pill list instead of severity groups.
+3. **Disclaimer** (`DisclaimerModal.tsx`): new wording; button "I Agree" → "I Understand".
+4. **Brand**: all user-facing strings unified to **AI-lergy** (single "l"), matching the live domain
+   ai-lergy.co.nz. (`page.tsx`, `layout.tsx`, `v/[slug]/page.tsx`, `VenueMenuClient.tsx`,
+   `AccountTopBar.tsx`.) Internal identifiers (repo/package/dir names) intentionally left as `ai-llergy`.
+
+**Why severity was safe to remove**: It was collected but never used on the Google-Sheet path
+(filtering is column-based, not confidence-based). The confidence-threshold logic that *would* consume
+severity (`confidence_scoring.md`) only applies to Supabase venues with confidence scores, which is
+currently dormant — and now always sees `"allergy"`.
+
+**Files Modified**: `SeverityModal.tsx`, `SelectionSummary.tsx`, `DisclaimerModal.tsx`, `page.tsx`,
+`layout.tsx`, `v/[slug]/page.tsx`, `VenueMenuClient.tsx`, `AccountTopBar.tsx`.
+
+**Left for a future cleanup pass** (no functional impact): `.severity-slider*` /
+`.selection-pill--*` / `.selection-summary__label--*` CSS, the `SeverityType` field on
+`SelectedAllergen`, and the now-misnamed `SeverityModal` component.
+

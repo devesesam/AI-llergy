@@ -5,7 +5,7 @@
 ## 1. Overview
 
 After the user submits their allergen selections, the form is replaced by a results view that displays:
-- **Selection Summary** (v2.3) - User's selected allergens with allergy/preference labels
+- **Selection Summary** (v2.3; flattened in v4.7) - User's selected allergens as a single flat pill list (severity grouping removed)
 - Summary header with item count
 - Collapsible "Safe to Eat" section (expanded by default)
 - Collapsible "Modification Suggestions - Subject to kitchen approval" section (collapsed by default) *(renamed in v4.3)*
@@ -28,9 +28,8 @@ After the user submits their allergen selections, the form is replaced by a resu
 │                      ▼                          │
 │  ┌───────────────────────────────────────────┐  │
 │  │  MenuResults.tsx                          │  │
-│  │  ├── SelectionSummary (v2.3)              │  │
-│  │  │   ├── Allergies group (red pills)      │  │
-│  │  │   └── Preferences group (orange pills) │  │
+│  │  ├── SelectionSummary (v4.7: flat list)   │  │
+│  │  │   └── single row of neutral pills      │  │
 │  │  ├── ResultsHeader                        │  │
 │  │  ├── AccordionSection (Safe)              │  │
 │  │  │   └── MenuItem[]                       │  │
@@ -101,12 +100,11 @@ const handleStartOver = () => {
 |-------|---------|
 | `.results-container` | Main wrapper, fade-in animation |
 | `.selection-summary` | User selections box at top (v2.3) |
-| `.selection-summary__group` | Allergies or Preferences group |
-| `.selection-summary__label--allergy` | Red "Allergies" badge |
-| `.selection-summary__label--preference` | Orange "Preferences" badge |
-| `.selection-pill` | Individual allergen pill |
-| `.selection-pill--allergy` | Red-bordered pill for allergies |
-| `.selection-pill--preference` | Orange-bordered pill for preferences |
+| `.selection-summary__pills` | Flat row of selection pills (v4.7) |
+| `.selection-pill` | Individual allergen pill — neutral style, used for all selections (v4.7) |
+| `.selection-summary__group` | **Unused since v4.7** (was severity group wrapper) |
+| `.selection-summary__label--allergy` / `--preference` | **Unused since v4.7** (severity badges) |
+| `.selection-pill--allergy` / `--preference` / `--life_threatening` | **Unused since v4.7** (severity-coloured pills) |
 | `.results-header` | Centered header section |
 | `.results-title` | "X items available for you" heading |
 | `.results-excluded` | Subtle excluded count note |
@@ -270,6 +268,11 @@ const handleStartOver = () => {
 - [x] ~~Add toggle to show/hide ingredients on menu items~~ (Done in v2.5)
 
 ## 10. Version History
+
+### v4.7 (2026-06-16)
+- **Flat Selection Summary**: `SelectionSummary.tsx` rewritten to render one flat "Your Selections" list of neutral pills. Removed the per-severity grouping (Life Threatening / Allergy / Preference / Added-via-Search / Custom Restrictions).
+- **Reason**: Severity is no longer collected from the user (submit-time slider removed — see `allergen_management.md` §6 and `SeverityModal.tsx`), so grouping by it was meaningless.
+- **Files Modified**: `SelectionSummary.tsx`. Severity-specific CSS classes left in `globals.css` but unused.
 
 ### v4.3 (2026-02-19)
 - **Caution Section Title**: Changed from "Can Be Modified" to "Modification Suggestions - Subject to kitchen approval"

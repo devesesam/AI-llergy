@@ -6,6 +6,30 @@ This directive tracks significant changes, fixes, and improvements to the AI-lle
 
 ---
 
+## June 2026 — Severity Retired + Disclaimer/Brand Copy (v4.7)
+
+**Severity slider removed.** The submit-time modal (`SeverityModal.tsx`) is now confirmation-only —
+review list of selections + "I take full responsibility" checkbox + Confirm. Removed `severityMap`
+state, `handleSeverityChange`, the slider markup, and `SEVERITY_OPTIONS`/`SeverityType` imports.
+Every selection defaults to `type: "allergy"` (`DEFAULT_TYPE`). Severity was collected but unused on
+the Google-Sheet filtering path.
+
+**Results summary flattened.** `SelectionSummary.tsx` renders one neutral "Your Selections" pill list
+instead of grouping by severity.
+
+**Copy/brand.**
+- `DisclaimerModal.tsx`: new disclaimer wording; button "I Agree" → "I Understand".
+- Brand unified to **AI-lergy** (single "l") across user-facing strings (`page.tsx`, `layout.tsx`,
+  `v/[slug]/page.tsx`, `VenueMenuClient.tsx`, `AccountTopBar.tsx`). Internal names left as `ai-llergy`.
+
+**Verification**: `tsc --noEmit` clean.
+
+**Dead code left for a future pass**: `.severity-slider*` / `.selection-pill--*` /
+`.selection-summary__label--*` CSS, the `SeverityType` field on `SelectedAllergen`, and the
+now-misnamed `SeverityModal`.
+
+---
+
 ## June 2026 — Kisa Menu + Chef Substitutions (v4.6)
 
 **Substitutions / "Can be modified" feature.** Excluded dishes are rescued into a new results section

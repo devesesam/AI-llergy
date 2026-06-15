@@ -245,7 +245,12 @@ All custom CSS uses BEM (Block Element Modifier):
 .severity-modal__footer            /* Buttons row */
 ```
 
-#### Severity Slider (v4.3)
+#### Severity Slider (v4.3 — ⚠️ UNUSED since v4.7)
+
+> The severity slider was removed from the submit-time modal in v4.7 (severity is
+> no longer collected). These classes remain in `globals.css` but are not rendered
+> by any component. Safe to delete in a future cleanup pass.
+
 ```css
 .severity-slider                   /* Full-width slider container */
 .severity-slider__labels           /* Label row above slider */
@@ -294,24 +299,31 @@ All custom CSS uses BEM (Block Element Modifier):
 ```
 
 #### Selection Summary
+
+> **v4.7**: Flattened to a single neutral pill list. Only `.selection-summary`,
+> `.selection-summary__title`, `.selection-summary__pills`, `.selection-pill`,
+> `.selection-pill__icon`, and `.selection-pill__label` are still used. The
+> severity/group classes below are **unused since v4.7** (kept for now).
+
 ```css
-.selection-summary                 /* Card showing selections */
-.selection-summary__title          /* "Your Selections" */
-.selection-summary__group          /* Severity group */
+.selection-summary                 /* Card showing selections — USED */
+.selection-summary__title          /* "Your Selections" — USED */
+.selection-summary__pills          /* Flat pills row — USED */
+.selection-pill                    /* Individual selection (neutral) — USED */
+.selection-pill__icon              /* Emoji — USED */
+.selection-pill__label             /* Name — USED */
+
+/* --- Unused since v4.7 (severity grouping removed) --- */
+.selection-summary__group          /* Severity group wrapper */
 .selection-summary__label          /* Severity badge */
 .selection-summary__label--life_threatening  /* Red badge */
 .selection-summary__label--allergy           /* Orange badge */
 .selection-summary__label--preference        /* Green badge */
 .selection-summary__label--custom            /* Gray badge */
-.selection-summary__pills          /* Tags row */
-
-.selection-pill                    /* Individual selection */
 .selection-pill--life_threatening  /* Red border */
 .selection-pill--allergy           /* Orange border */
 .selection-pill--preference        /* Green border */
 .selection-pill--custom            /* Gray border */
-.selection-pill__icon              /* Emoji */
-.selection-pill__label             /* Name */
 ```
 
 #### Accordion Sections
@@ -615,6 +627,9 @@ grep -n "new-class" ai-llergy-webapp/src/app/globals.css
 - **Known Issues**: `directives/known_issues_and_fixes.md` - BUG-003 CSS regression, BUG-004 spinner, BUG-005 desktop width
 
 ## 11. Version History
+
+### v4.7 (2026-06-16)
+- **Severity UI removed**: `.severity-slider*` classes and the `.selection-pill--*` / `.selection-summary__label--*` / `.selection-summary__group` severity classes are now **unused** (severity slider removed from the submit modal; results summary flattened). Left in place; candidate for deletion.
 
 ### v4.5 (2026-06-11)
 - **Allergen rows**: Added `.allergen-grid__rows` + `.allergen-grid__rows .allergen-option` for full-width horizontal row buttons (Dietary Preferences + Common Allergens).

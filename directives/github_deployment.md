@@ -2,21 +2,25 @@
 
 **Goal**: Document the correct procedures for version control and deployment of the AI-llergy project, specifically addressing the unique workspace structure and known environment issues.
 
-## 1. Workspace Structure
+## 1. Workspace Structure — TWO repos, both legitimate
 
-The workspace contains two distinct layers of version control:
+> **This is intentional, not a mistake.** New agents (and the owner) often think the second
+> repo is an accident — it isn't. There are two separate GitHub repos, both under `devesesam`,
+> each with a distinct job. When asked to "push all changes", push **BOTH**.
 
-1.  **Root Workspace** (`.../AI-llergy`):
-    *   Contains documentation (`directives/`), older prototypes (`ai-llergy-app`), and the main web application folder.
-    *   **Repo**: `https://github.com/devesesam/AI-llergy`
-    *   **Status**: Primarily for documentation and backup of the entire project context.
-    *   **Known Issue**: Contains a phantom `nul` file (see Section 3).
+| Repo | Location | Branch | Contains | Role |
+|---|---|---|---|---|
+| **`devesesam/ai-llergy-webapp`** | nested `ai-llergy-webapp/.git` | **`master`** | Just the Next.js app (`src/`, etc.) | **The ONLY repo Netlify deploys** → ai-lergy.co.nz |
+| **`devesesam/AI-llergy`** | workspace root `.git` | **`workspace`** | `directives/`, `execution/` scripts, Kisa CSVs/PDF, **and a tracked copy of the webapp files** | Full-project backup; **NOT deployed** |
 
-2.  **Web Application** (`.../AI-llergy/ai-llergy-webapp`):
-    *   Contains the Next.js/React source code for the active product.
-    *   **Repo**: `https://github.com/devesesam/ai-llergy-webapp`
-    *   **Status**: Active development repository. This is what deploys to Vercel/Netlify.
-    *   **Important**: This is a **nested repository**. It has its own `.git` folder.
+- **Deploy a code change** → commit + push the **nested** repo's `master`. Nothing else updates the live site.
+- **Back up docs/scripts/data** → commit + push the **outer** repo's `workspace`. (It also happens to
+  track copies of the webapp files, which is why `git status` at the root shows webapp files as
+  "modified" — that overlap is what masks the nesting and confuses people.)
+- The outer repo's history goes back to Feb 2026, all authored by the owner. It is *their* repo, not
+  something an agent created.
+- `.env.local` is gitignored in **both** repos — never commit it (holds the Anthropic + Supabase keys).
+- **Important**: the webapp is a **nested repository** (its own `.git` inside the outer repo).
 
 ---
 
@@ -72,11 +76,14 @@ git push origin master
 
 **Cause**: The folder `ai-llergy-webapp` is a fully initialized git repo inside another git repo.
 
-**Workflow**:
+**Current reality (do not "fix" this without the owner's say-so)**:
 *   Treat them as separate entities.
-*   **Primary Work**: Focus on `ai-llergy-webapp`. Push changes there.
-*   **Backup/Docs**: If updating directives in the root, you can push the root repo, but **ignore** the `ai-llergy-webapp` folder in the root's `.gitignore` to avoid submodule complexity, OR commit it as a submodule reference if intended.
-*   **Recommendation**: Just ignore the webapp folder in the root repo to prevent "dirty submodule" states.
+*   **Deploy work**: commit + push `ai-llergy-webapp` (`master`) — only this updates the live site.
+*   **Docs/data**: commit + push the root repo (`workspace`).
+*   The root repo **currently tracks a copy** of the `ai-llergy-webapp/` files (it is NOT gitignored and
+    NOT a submodule). That overlap is intentional-enough as a backup — pushing both keeps them in sync.
+    Don't add `ai-llergy-webapp/` to the root `.gitignore` or convert it to a submodule unless the owner
+    explicitly asks to consolidate; doing so silently would drop the webapp copy from the backup repo.
 
 ### Issue 3: PowerShell Operator Conflicts
 **Symptoms**:
