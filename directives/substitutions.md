@@ -6,17 +6,23 @@ excluded — **can be modified** to suit them, using the chef's own specific swa
 removals. The app reads this data deterministically (no LLM at request time) and surfaces
 matching dishes in a **"Can be modified for you"** results section.
 
-## Where the data lives
-A second tab named **Substitutions** inside the same menu Google Sheet (same
-`GOOGLE_SHEET_ID`). The app fetches it via the public CSV export using the tab's `gid`,
-configured as env var `GOOGLE_SUBSTITUTIONS_GID`.
+## Where the data lives (PER VENUE)
+Each venue has its own **Substitutions** tab inside the shared menu Google Sheet (same
+`GOOGLE_SHEET_ID`). The tab's `gid` is declared per venue in the registry
+**`ai-llergy-webapp/src/lib/venues.ts`** as `substitutionsGid` (NOT the old
+`GOOGLE_SUBSTITUTIONS_GID` env var, which is retired).
 
-- If `GOOGLE_SUBSTITUTIONS_GID` is unset/empty, the feature is dormant and the app behaves
-  exactly as before (no "Can be modified" section).
-- Cached in-memory for 10 minutes, same as the menu. Edits appear within ~10 min (or on redeploy).
+- If a venue's `substitutionsGid` is `undefined`, the feature is dormant **for that venue** and it
+  behaves exactly as before (no "Can be modified" section). Other venues are unaffected.
+- Cached in-memory for 10 minutes per venue (keyed by slug), same as the menu. Edits appear within
+  ~10 min (or on redeploy).
+- Live status: **Kisa** is wired (`1265271651`). **Mr Go's** (`1639397504`) and **Ombra**
+  (`1976184234`) are deliberately `undefined` — those tabs currently hold Kisa example rows the
+  chef is using as a template, so wiring them would surface the wrong venue's swaps. Set the gid
+  only once the tab holds that venue's own swaps.
 
-To get the gid: open the Substitutions tab, look at the URL — `...#gid=123456789` — that number
-is the gid.
+To get the gid: open the venue's Substitutions tab, look at the URL — `...#gid=123456789` — that
+number is the gid; put it in that venue's entry in `venues.ts`.
 
 ## Tab schema (columns)
 | Column | Required | Meaning |
@@ -95,13 +101,15 @@ row's `Solves`/`Introduces` is harmless — it just never matches a triggering a
 2. Validate before publishing:
    `python execution/validate_substitutions.py <their_file>.csv kisa_menu.csv`
    Fix any reported errors (usually a dish name that doesn't match, or a mistyped allergen id).
-3. Paste the validated rows into a new **Substitutions** tab in the Kisa Google Sheet.
-4. Grab the tab's `gid` and set `GOOGLE_SUBSTITUTIONS_GID` in `.env.local` (local) and Netlify
-   (production), then redeploy.
+3. Paste the validated rows into that venue's **Substitutions** tab in the Google Sheet
+   (replacing any example/template rows — a duplicated tab may still hold another venue's rows).
+4. Grab the tab's `gid` and set `substitutionsGid` on that venue's entry in
+   `ai-llergy-webapp/src/lib/venues.ts`, then commit + redeploy. (No env var to set.)
 
 ## Files (code)
-- `ai-llergy-webapp/src/lib/google-sheets.ts` — `fetchSubstitutionsFromSheets()` (reads the tab)
-- `ai-llergy-webapp/src/lib/menu-service.ts` — `getSubstitutions()` (parse + 10-min cache, dish-keyed map)
+- `ai-llergy-webapp/src/lib/venues.ts` — per-venue `substitutionsGid` (which tab to read)
+- `ai-llergy-webapp/src/lib/google-sheets.ts` — `fetchSubstitutionsFromSheets(subsGid?)` (reads the tab)
+- `ai-llergy-webapp/src/lib/menu-service.ts` — `getSubstitutions(venue)` (per-venue parse + 10-min cache, dish-keyed map)
 - `ai-llergy-webapp/src/lib/substitutions.ts` — parsing, viability/conflict logic, instruction formatting
 - `ai-llergy-webapp/src/lib/filter-menu.ts` — rescue step → `modifiableItems`
 - `ai-llergy-webapp/src/app/api/submit/route.ts` — returns `modifiedItems`

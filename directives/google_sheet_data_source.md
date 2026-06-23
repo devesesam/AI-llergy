@@ -1,36 +1,50 @@
 # Directive: Google Sheet Data Source (live menu + substitutions)
 
-**Goal**: Document the live data source that the public app (`/` home page) reads from, the
-exact schema it expects, and the failure modes that have repeatedly broken the app when the
+**Goal**: Document the live data source that the public `/[venue]` pages read from, the
+exact schema they expect, and the failure modes that have repeatedly broken the app when the
 sheet is edited. **Read this before touching the Google Sheet or the menu-loading code.**
 
 > Context: Supabase is **paused** (see [[supabase-paused-gsheet-source]] / `supabase_integration.md`).
 > The public allergen-filtering experience runs entirely off a **public Google Sheet**, not the DB.
 > The `/v/[slug]` venue pages and the dashboard are the only things that still use Supabase.
 
-## 1. Where the data lives
+## 1. Where the data lives (MULTI-VENUE)
 
-One Google Sheet (the **Kisa** sheet), with **two tabs**:
+**One Google Sheet, many venues.** As of the multi-venue release, every venue is a pair of tabs
+in the **same** spreadsheet: a **menu** tab and (optionally) a **substitutions** tab. Which gid
+belongs to which venue is declared in the static registry **`ai-llergy-webapp/src/lib/venues.ts`**
+(the source of truth — `GOOGLE_SUBSTITUTIONS_GID` is no longer used).
 
-| Tab | Purpose | Env var | Code entry point |
+- Spreadsheet ID: `1xxS6NRa16fptx3c4CJ5-V6mp-yDIHDGb7RnLx03isaw`, set via `GOOGLE_SHEET_ID`
+  (shared by all venues). Old sample: `1HNWCErJzCBRfy-oPOqPgg1UYYbhOkD5tuVrLWevryeU`.
+- Each venue page lives at `/<slug>` (e.g. `/kisa`); `/` is a landing page that links to each venue.
+
+| Venue | slug | menu tab gid | substitutions tab gid |
 |---|---|---|---|
-| Menu (first/default tab) | Dishes + ingredients + allergen flags | `GOOGLE_SHEET_ID` | `fetchMenuFromSheets()` |
-| **Substitutions** | Chef swaps/removals ("Can be modified") | `GOOGLE_SUBSTITUTIONS_GID` | `fetchSubstitutionsFromSheets()` |
+| Kisa | `kisa` | `1377599134` | `1265271651` (live) |
+| Mr Go's | `mr-gos` | `361708590` | `1639397504` — **OFF** (holds Kisa example rows for the chef; not wired) |
+| Ombra | `ombra` | `1466155614` | `1976184234` — **OFF** (same; not wired) |
 
-- Current Kisa Sheet ID: `1xxS6NRa16fptx3c4CJ5-V6mp-yDIHDGb7RnLx03isaw`
-- Substitutions tab gid: `1265271651`
-- Fetched as **public CSV export**: `https://docs.google.com/spreadsheets/d/<ID>/export?format=csv[&gid=<GID>]`
+- Fetched as **public CSV export**: `https://docs.google.com/spreadsheets/d/<ID>/export?format=csv&gid=<GID>`
   — the sheet MUST be shared "Anyone with the link → Viewer". No Google API auth is used.
-- Both are cached in-memory for **10 minutes** (`menu-service.ts`), so edits take up to ~10 min to
-  appear (or restart dev / redeploy to flush).
+- Cached in-memory **per venue** for **10 minutes** (`menu-service.ts`, keyed by slug), so edits
+  take up to ~10 min to appear (or restart dev / redeploy to flush).
+- To add/onboard a venue: add a tab (menu, and optionally substitutions), grab each tab's gid from
+  its URL (`...#gid=<number>`), and add a `{ slug, name, menuGid, substitutionsGid? }` entry to
+  `venues.ts`. No env-var or other code change needed; the `/<slug>` route appears automatically.
+- A venue's `substitutionsGid` should be left `undefined` until that tab holds **that venue's own**
+  swaps. A duplicated tab often still contains another venue's example rows — wiring it would serve
+  the wrong venue's substitutions (harmless only because the dish-name join misses, but don't rely
+  on that).
 
 ## 2. Deployment (IMPORTANT)
 
 - Production is on **Netlify** at **https://ai-lergy.co.nz** (single "l"). The `ai-llergy.co.nz`
   strings in code are just the intended venue-URL label and don't resolve. (Directives elsewhere say
   Vercel — that's outdated.)
-- Env vars (`GOOGLE_SHEET_ID`, `GOOGLE_SUBSTITUTIONS_GID`, `ANTHROPIC_API_KEY`) live in **Netlify →
-  Site configuration → Environment variables**, and in `.env.local` for local dev.
+- Env vars (`GOOGLE_SHEET_ID`, `ANTHROPIC_API_KEY`) live in **Netlify → Site configuration →
+  Environment variables**, and in `.env.local` for local dev. (`GOOGLE_SUBSTITUTIONS_GID` is
+  **retired** — per-venue gids now live in `src/lib/venues.ts`, not env.)
 - **Code changes only reach production on redeploy.** Editing the Sheet is instant-ish (10-min cache);
   editing code requires push + Netlify deploy.
 
@@ -80,7 +94,9 @@ See `directives/substitutions.md` for the full feature. Columns:
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| **Every selection returns 0 results; `meta.totalItems: 0`** | The dish name isn't in column A, or the no-gid export is returning the wrong tab | Put the dish name back in column A (any header is fine now); ensure the menu tab is the first/default tab |
+| **Every selection returns 0 results; `meta.totalItems: 0`** | The dish name isn't in column A, or the venue's `menuGid` points at the wrong/empty tab | Put the dish name back in column A (any header is fine now); verify the venue's `menuGid` in `src/lib/venues.ts` matches the intended menu tab |
+| **A venue shows another venue's dishes / substitutions** | A `menuGid` or `substitutionsGid` in `venues.ts` points at the wrong tab (e.g. a duplicated tab still holding example rows) | Fix the gid in `venues.ts`; leave `substitutionsGid` `undefined` until the tab holds that venue's own data |
+| **Whole venue 500s on submit** | The venue's `menuGid` is a placeholder/invalid gid (CSV export fails) | Set a real gid in `venues.ts` |
 | A specific allergen filter does nothing / sends everything to slow AI path | Its column was renamed/removed, or isn't registered in `allergens.ts` | Match the sheet header to `allergens.ts` `columnName` exactly, or register it |
 | A dish that should be "modifiable" shows as plain Safe | The menu marks it `… FREE = YES`, so it's never excluded → nothing to rescue | Set that allergen column to `NO` for the dish (it must "contain" the allergen to be rescued) |
 | Substitution introduces-guard stops blocking unsafe swaps | The introduced-allergen column was renamed beyond `Introduces`/`Introduces allergy` | Keep the header recognizable, or extend the matcher in `substitutions.ts` |
@@ -90,7 +106,21 @@ See `directives/substitutions.md` for the full feature. Columns:
 and don't rename/remove allergen column headers unless you also update `allergens.ts`. The app is
 tolerant of the name column and the introduces column, but **not** of arbitrary allergen-column renames.
 
-## 6. Related
+## 6. Code map (multi-venue plumbing)
+
+- `src/lib/venues.ts` — venue registry (`VENUES`, `getVenueBySlug`); slug → menuGid/subsGid/brand.
+- `src/lib/google-sheets.ts` — `fetchMenuFromSheets(menuGid?)`, `fetchSubstitutionsFromSheets(subsGid?)`
+  (both take a per-call gid; `fetchSheetTab(gid?)` builds the CSV URL).
+- `src/lib/menu-service.ts` — per-venue cache; `getMenu(venue)`, `getSubstitutions(venue)`,
+  `getAvailableColumns(venue)`, `getCacheStatus(venue)`, `refreshMenu(venue)`.
+- `src/app/api/submit/route.ts` — reads `venueSlug` from the POST body, resolves the venue,
+  filters that venue's menu + substitutions (defaults to `kisa` if absent).
+- `src/app/[venue]/page.tsx` — resolves slug → `notFound()` if unknown → renders `<VenueApp>`.
+- `src/components/VenueApp.tsx` — the shared per-venue UI (posts `venueSlug`; branding seam via
+  `VenueConfig.brand` CSS-var overrides, unused for now).
+- `src/app/page.tsx` — the landing page (lists `VENUES`).
+
+## 7. Related
 
 - `directives/substitutions.md` — the "Can be modified" feature
 - `directives/backend_menu_filter.md` — filtering pipeline (fast/column, confidence, AI paths)

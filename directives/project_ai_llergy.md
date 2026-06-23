@@ -17,10 +17,11 @@
 
 ### External Data Sources
 *   **Menu Database**: Google Sheets (public CSV export, read-only)
-    *   Sheet ID: set via `GOOGLE_SHEET_ID` env var. Current (Kisa): `1xxS6NRa16fptx3c4CJ5-V6mp-yDIHDGb7RnLx03isaw`. Old sample: `1HNWCErJzCBRfy-oPOqPgg1UYYbhOkD5tuVrLWevryeU`
-    *   Contains: Menu items, ingredients, prices, allergen columns (YES/NO/CAN BE)
+    *   Sheet ID: set via `GOOGLE_SHEET_ID` env var (one spreadsheet shared by all venues): `1xxS6NRa16fptx3c4CJ5-V6mp-yDIHDGb7RnLx03isaw`. Old sample: `1HNWCErJzCBRfy-oPOqPgg1UYYbhOkD5tuVrLWevryeU`
+    *   Contains: Menu items, ingredients, prices, allergen columns (YES/NO)
+    *   **Multi-venue (v4.8)**: each venue = a menu tab (+ optional substitutions tab) in this sheet. Tab gids are declared per venue in `ai-llergy-webapp/src/lib/venues.ts` (the source of truth). Live venues: **kisa** (menu `1377599134`, subs `1265271651`), **mr-gos** (menu `361708590`), **ombra** (menu `1466155614`). Served at `/<slug>`; `/` is the landing page.
     *   **No write credentials** in project — app only reads. Writing to the sheet (e.g. nightshade column) is manual paste unless a service account is added.
-    *   **Substitutions tab** (same sheet, `GOOGLE_SUBSTITUTIONS_GID`, current `1265271651`): chef swaps/removals powering the "Can be modified" feature. See `directives/substitutions.md`.
+    *   **Substitutions**: per-venue tab; gid set as `substitutionsGid` in `venues.ts` (the old `GOOGLE_SUBSTITUTIONS_GID` env var is retired). Powers the "Can be modified" feature. See `directives/substitutions.md`.
     *   **Full schema, tolerance rules, and failure modes**: `directives/google_sheet_data_source.md` (READ THIS before editing the sheet or menu-loading code).
 *   **AI API**: Anthropic Claude (for custom allergy text interpretation)
 *   **Deployment**: **Netlify**, live at **https://ai-lergy.co.nz** (single "l"). Env vars set in Netlify → Site configuration → Environment variables. Code changes require a redeploy; sheet edits appear within the 10-min cache.
@@ -31,8 +32,11 @@
 *   **Type**: Next.js 16 + React 19 + TypeScript
 *   **Location**: `ai-llergy-webapp/`
 *   **Structure**:
-    *   `src/app/page.tsx`: Main page with form/results view toggle
-    *   `src/app/api/submit/route.ts`: Backend API for menu filtering
+    *   `src/app/page.tsx`: **Landing page** — venue picker (links to each `/<slug>`) (v4.8)
+    *   `src/app/[venue]/page.tsx`: Per-venue page; resolves slug via `venues.ts` → renders `VenueApp` (v4.8)
+    *   `src/components/VenueApp.tsx`: The form/results experience (was `page.tsx` pre-v4.8)
+    *   `src/lib/venues.ts`: Venue registry (slug → menu/subs tab gids + branding) (v4.8)
+    *   `src/app/api/submit/route.ts`: Backend API for menu filtering (takes `venueSlug`)
     *   `src/app/api/interpret/route.ts`: AI interpretation endpoint for autocomplete (v2.4)
     *   `src/components/`: UI components
         *   `AllergenGrid.tsx`: Allergen selection grid with sections
@@ -80,6 +84,27 @@
     4.  Check browser console for errors.
 
 ## 4. Change Log & Issues
+
+### v4.8 - Multi-Venue (landing + /[venue] pages) (2026-06-23)
+
+**Summary**: The live app now serves multiple venues off the one Google Sheet, each at its own
+clean URL, instead of being hard-wired to a single venue at `/`.
+
+*   **Venue registry** (`src/lib/venues.ts`, NEW): static `VENUES` list (`slug, name, menuGid,
+    substitutionsGid?, brand?`) + `getVenueBySlug`. The source of truth for which venues exist and
+    which sheet tabs they read. Onboarding a venue = add a tab + a registry entry (no env/code change).
+*   **Per-venue data fetch**: `fetchMenuFromSheets(menuGid?)` / `fetchSubstitutionsFromSheets(subsGid?)`
+    now take a gid; `menu-service.ts` caches **per venue** (keyed by slug). `GOOGLE_SUBSTITUTIONS_GID`
+    env var retired.
+*   **Routing**: `/` is now a **landing page** (venue picker); each venue at **`/<slug>`**
+    (`src/app/[venue]/page.tsx`, unknown slug → 404). The old home experience was extracted verbatim
+    into `src/components/VenueApp.tsx` (posts `venueSlug` to `/api/submit`; branding seam via
+    `VenueConfig.brand` CSS-var overrides, unused for now).
+*   **`/api/submit`** takes `venueSlug` (defaults to `kisa`) and filters that venue's menu + subs.
+*   **Live venues**: kisa, mr-gos (31 dishes), ombra (27 dishes). Mr Go's/Ombra substitutions are
+    OFF (`undefined`) — those tabs hold Kisa example rows the chef uses as a template.
+*   **Deploy note**: root URL is the landing now — **reprint the Kisa QR to `/kisa`**.
+*   **Related**: `google_sheet_data_source.md` §1/§6, `substitutions.md`.
 
 ### v4.7 - Severity Retired + Disclaimer/Brand Copy (2026-06-16)
 

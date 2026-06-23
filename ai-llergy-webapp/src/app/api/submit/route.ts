@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SelectedAllergen, CustomTag, SeverityType } from "@/lib/allergens";
 import { ALLERGEN_TO_COLUMN, getAllergenById } from "@/lib/allergens";
 import { getMenu, getCacheStatus, getAvailableColumns, getSubstitutions } from "@/lib/menu-service";
+import { getVenueBySlug } from "@/lib/venues";
 import {
   filterMenu,
   filterMenuWithConfidence,
@@ -16,6 +17,7 @@ interface SubmissionBody {
   allergens: SelectedAllergen[];
   customAllergenIds?: string[];
   customTags?: CustomTag[];
+  venueSlug?: string;
 }
 
 export interface MenuResponse {
@@ -71,12 +73,22 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: SubmissionBody = await request.json();
-    const { allergens, customAllergenIds, customTags } = body;
+    const { allergens, customAllergenIds, customTags, venueSlug } = body;
 
     // Validate input
     if (!Array.isArray(allergens)) {
       return NextResponse.json(
         { error: "allergens must be an array" },
+        { status: 400 }
+      );
+    }
+
+    // Resolve which venue's menu to filter. Default to "kisa" for backwards
+    // compatibility with any caller that doesn't send a venueSlug.
+    const venue = getVenueBySlug(venueSlug || "kisa");
+    if (!venue) {
+      return NextResponse.json(
+        { error: `Unknown venue: ${venueSlug}` },
         { status: 400 }
       );
     }
@@ -102,15 +114,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get menu (from cache or fresh)
-    const menu = await getMenu();
-    const cacheStatus = getCacheStatus();
+    // Get menu (from cache or fresh) for this venue
+    const menu = await getMenu(venue);
+    const cacheStatus = getCacheStatus(venue);
 
-    // Get chef-provided substitutions (empty map if the feature isn't configured)
-    const substitutions = await getSubstitutions();
+    // Get chef-provided substitutions (empty map if the venue has none configured)
+    const substitutions = await getSubstitutions(venue);
 
     // Get available columns to determine which allergens need AI filtering
-    const availableColumns = getAvailableColumns();
+    const availableColumns = getAvailableColumns(venue);
 
     // Split allergens into those with columns vs those needing AI
     const columnAllergens: string[] = [];

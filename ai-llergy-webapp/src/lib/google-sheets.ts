@@ -6,9 +6,9 @@
 const SHEET_ID = process.env.GOOGLE_SHEET_ID || "1HNWCErJzCBRfy-oPOqPgg1UYYbhOkD5tuVrLWevryeU";
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
 
-// gid (tab id) of the "Substitutions" tab within the same spreadsheet.
-// When unset, the substitutions feature is dormant and fetchSubstitutionsFromSheets() returns [].
-const SUBSTITUTIONS_GID = process.env.GOOGLE_SUBSTITUTIONS_GID || "";
+// Every venue is a tab in this same spreadsheet. Which menu/substitutions tab to
+// read is now passed in per call (see src/lib/venues.ts), not read from a global
+// env var, so one deployment can serve many venues.
 
 export interface RawMenuItem {
   Item: string;
@@ -111,10 +111,11 @@ async function fetchSheetTab(gid?: string): Promise<RawSheetRow[]> {
 }
 
 /**
- * Fetch raw menu data from Google Sheets (first/default tab)
+ * Fetch raw menu data from Google Sheets for a given venue's menu tab.
+ * @param menuGid - the venue's menu-tab gid; omit/empty for the first/default tab.
  */
-export async function fetchMenuFromSheets(): Promise<RawMenuItem[]> {
-  const rows = await fetchSheetTab();
+export async function fetchMenuFromSheets(menuGid?: string): Promise<RawMenuItem[]> {
+  const rows = await fetchSheetTab(menuGid);
   return rows as RawMenuItem[];
 }
 
@@ -133,14 +134,15 @@ export interface RawSubstitution {
 }
 
 /**
- * Fetch chef-provided substitution rows from the "Substitutions" tab.
- * Returns [] when GOOGLE_SUBSTITUTIONS_GID is unset or the fetch fails, so the
- * feature degrades gracefully (app behaves exactly as before substitutions existed).
+ * Fetch chef-provided substitution rows from a venue's "Substitutions" tab.
+ * Returns [] when no subsGid is given or the fetch fails, so the feature degrades
+ * gracefully (app behaves exactly as before substitutions existed).
+ * @param subsGid - the venue's substitutions-tab gid; omit when the venue has none.
  */
-export async function fetchSubstitutionsFromSheets(): Promise<RawSubstitution[]> {
-  if (!SUBSTITUTIONS_GID) return [];
+export async function fetchSubstitutionsFromSheets(subsGid?: string): Promise<RawSubstitution[]> {
+  if (!subsGid) return [];
   try {
-    const rows = await fetchSheetTab(SUBSTITUTIONS_GID);
+    const rows = await fetchSheetTab(subsGid);
     return rows as RawSubstitution[];
   } catch (error) {
     console.error("[google-sheets] Failed to fetch substitutions tab:", error);
