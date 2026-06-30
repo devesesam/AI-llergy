@@ -2,21 +2,25 @@
 
 **Goal**: Document the correct procedures for version control and deployment of the AI-llergy project, specifically addressing the unique workspace structure and known environment issues.
 
-## 1. Workspace Structure — TWO repos, both legitimate
+## 1. Workspace Structure — THREE repos, all legitimate
 
-> **This is intentional, not a mistake.** New agents (and the owner) often think the second
-> repo is an accident — it isn't. There are two separate GitHub repos, both under `devesesam`,
-> each with a distinct job. When asked to "push all changes", push **BOTH**.
+> **This is intentional, not a mistake.** New agents (and the owner) often think the extra
+> repos are an accident — they aren't. There are separate GitHub repos under `devesesam`,
+> each with a distinct job. When asked to "push all changes", push the relevant **nested**
+> app repo **and** the outer backup repo.
 
 | Repo | Location | Branch | Contains | Role |
 |---|---|---|---|---|
-| **`devesesam/ai-llergy-webapp`** | nested `ai-llergy-webapp/.git` | **`master`** | Just the Next.js app (`src/`, etc.) | **The ONLY repo Netlify deploys** → ai-lergy.co.nz |
-| **`devesesam/AI-llergy`** | workspace root `.git` | **`workspace`** | `directives/`, `execution/` scripts, Kisa CSVs/PDF, **and a tracked copy of the webapp files** | Full-project backup; **NOT deployed** |
+| **`devesesam/ai-llergy-webapp`** | nested `ai-llergy-webapp/.git` | **`master`** | The allergen-filter Next.js app (`src/`, etc.) | **Netlify deploys this** → ai-lergy.co.nz |
+| **`devesesam/set-menu-builder`** | nested `set-menu-builder/.git` | **`master`** | The Set Menu Builder Next.js app (separate product, shares the same Google Sheet) | **Netlify deploys this** → setmenu.ai-lergy.co.nz |
+| **`devesesam/AI-llergy`** | workspace root `.git` | **`workspace`** | `directives/`, `execution/` scripts, CSVs/PDFs/data, **and tracked copies of both apps' files** | Full-project backup; **NOT deployed** |
 
-- **Deploy a code change** → commit + push the **nested** repo's `master`. Nothing else updates the live site.
-- **Back up docs/scripts/data** → commit + push the **outer** repo's `workspace`. (It also happens to
-  track copies of the webapp files, which is why `git status` at the root shows webapp files as
-  "modified" — that overlap is what masks the nesting and confuses people.)
+- **Deploy an allergen-app change** → commit + push the **`ai-llergy-webapp`** nested repo's `master`.
+- **Deploy a set-menu-builder change** → commit + push the **`set-menu-builder`** nested repo's `master`.
+- **Back up docs/scripts/data** → commit + push the **outer** repo's `workspace`. (It also tracks copies
+  of both apps' files, which is why `git status` at the root shows app files as "modified" — that overlap
+  is what masks the nesting and confuses people.)
+- Each nested app is independent: a code change in one does NOT redeploy the other.
 - The outer repo's history goes back to Feb 2026, all authored by the owner. It is *their* repo, not
   something an agent created.
 - `.env.local` is gitignored in **both** repos — never commit it (holds the Anthropic + Supabase keys).
