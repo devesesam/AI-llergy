@@ -2,6 +2,12 @@
 
 **Goal**: Develop and maintain a mobile-first, high-end web application that allows users to filter menu items based on allergies. Like the "Mosaic" parent brand, the design must be premium, using the specific "Food Magazine Editorial" aesthetic.
 
+> **This workspace now hosts TWO apps.** This directive covers the allergen-filter app
+> (`ai-llergy-webapp/` → ai-lergy.co.nz). The **Set Menu Builder** (`set-menu-builder/` →
+> setmenu.ai-lergy.co.nz) is a separate product that reuses the same Google Sheet + allergen
+> logic — see **`directives/set_menu_builder.md`**. Deployment of both (THREE git repos):
+> `directives/github_deployment.md`.
+
 ## 1. Resources & Standards
 
 ### Brand Guidelines

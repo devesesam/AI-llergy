@@ -60,18 +60,27 @@ names (curated alias map for tricky cases), and writes:
 It prints a reconciliation report and validates each tier's `Σ Price` against the spreadsheet
 `TOTAL` and `Σ Price ÷ 4` against `PER PERSON`.
 
-### Dish-name reconciliation (drive blanks to zero before launch)
+### The Dish Key join (safety-critical) — uses `looseKey`, not exact match
 The join uses an **explicit Dish Key** authored from the live sheet — never runtime fuzzy
-matching (a safety-critical lookup). Currently UNRESOLVED (need chef confirmation), so left
-blank = allergen-unknown:
+matching. Both sides go through `looseKey()` (in `set-menu.ts`): lowercase + strip accents +
+fold every dash variant (–, —, −) to "-" + collapse whitespace. So the Sheet's Dish Key can be
+typed with plain ASCII hyphens and still match menu names that use en-dashes (and it survives
+copy-paste encoding damage — see §8). A blank Dish Key = allergen-unknown (never marked safe).
+
+### Dish-name reconciliation (drive blanks to zero)
+Still UNRESOLVED (need chef confirmation), left blank = allergen-unknown:
 - **Mr Go's**: `MUSHROOM 'XO' FRIED RICE` (is it "Vege Fried Rice"?), `CHILLI & COCONUT CHICKEN
   SALAD` (is it "Chicken Salad"?).
-- **Ombra**: `Slow cook lamb…` (no lamb dish on the live Ombra menu).
-- **Kisa**: `URFA X2` (ambiguous: "Lamb Urfa Kebab" vs "Lamb Urfa (Lunch Plate)").
-  Also `PITA/YUFKA` was mapped to "Pita" as a representative — confirm.
-To resolve: confirm the matching menu dish with the chef, then set `Dish Key` =
-`normalizeDishName(that menu name)` (or add the dish to the menu tab). Re-run the ingest, or
-edit the tab directly. **`GET /api/health` lists every unresolved key.**
+- **Ombra**: `Slow cook lamb…` (no lamb dish on the live Ombra menu tab).
+
+RESOLVED: Kisa `URFA X2` → "Lamb Urfa Kebab" (confirmed by owner). `PITA/YUFKA` → "Pita" as a
+representative (confirm if it matters for an allergy). All other dishes resolved by the
+ingest's curated alias map.
+
+To resolve a blank: confirm the matching menu dish with the chef, then set `Dish Key` =
+`looseKey(that menu name)` — i.e. lowercase, plain hyphens, no accents (or add the dish to the
+menu tab). Re-run the ingest, or edit the tab directly. **`GET /api/health` lists every
+unresolved key and reads `ok:true` at zero.**
 
 ---
 
@@ -137,20 +146,44 @@ A future improvement is extracting these into a shared package; out of scope for
 ## 6. Verification
 
 - `cd set-menu-builder && npm run build` passes; `npm run dev` then:
-  - `GET /api/health` → tier totals match the spreadsheet; unresolved count = the known 4
-    until the chef confirms them.
+  - `GET /api/health` → tier totals match the spreadsheet; unresolved count = the 3 dishes
+    still awaiting chef confirmation (see §2).
   - `POST /api/build` Mr Go's `38`, G=4, no allergens → 8 dishes, per-head ≈ $35.63.
   - G=6 → portions added, spread ≤ $228.
   - G=4 + a guest `["gluten","dairy"]` → safe list only, fair-share short → honest
-    recommendation; Kisa shows substitutions where the chef has them.
+    recommendation; Kisa shows substitutions where the chef has them (e.g. Beetroot/URFA).
 
 ---
 
 ## 7. Status & roadmap
 
-- **v1 — Built (Local).** App scaffolded, builds clean, all endpoints tested against the live
-  sheet using the bundled set-menu data. Set-menu tabs not yet created in the Sheet
-  (`setMenuGid` undefined → bundled fallback). Not yet deployed.
-- **Next**: (1) chef confirms the 4 unresolved dish names; (2) create the 3 Sheet tabs from the
-  CSVs and set `setMenuGid`; (3) first deploy + subdomain; (4) optional: Course grouping,
-  dessert handling, per-venue branding.
+- **v1 — Live.** Deployed to Netlify (own repo `devesesam/set-menu-builder` → intended at
+  setmenu.ai-lergy.co.nz) and tested live by the owner across all three venues. The three
+  set-menu Sheet tabs exist and their gids are wired in `venues.ts`
+  (kisa `395901294`, mr-gos `1707387833`, ombra `321541246`) → the app reads the live tabs
+  (bundled CSV is fallback only). Kisa URFA resolved. Smarter recommendation + spend-framed
+  fair-share badge shipped.
+- **Open**: chef to confirm the 3 remaining dish names (§2) so `/api/health` reads `ok:true`.
+  Confirm the Netlify env var `GOOGLE_SHEET_ID` = the live sheet and the `setmenu` subdomain DNS.
+- **Roadmap (optional)**: Course grouping/order, dessert handling, per-venue branding, and
+  extracting the copied libs into a shared package (see §5).
+
+---
+
+## 8. Known issues & fixes
+
+- **Copy-paste mojibake of en-dashes (FIXED via `looseKey`).** Pasting the Ombra CSV into
+  Google Sheets mangled en-dashes (`–`) into `â€“` (UTF-8 read as Windows-1252), so those Dish
+  Keys stopped matching the menu tab → dishes wrongly became allergen-unknown. Fix: the join
+  now runs both sides through `looseKey()` (dash/accent-insensitive), and the ingest writes
+  clean ASCII keys (plain hyphens). If it recurs: re-paste the clean keys from
+  `src/data/set-menus/<slug>.csv` (a column-wide find-replace of the mangled string also
+  works), then check `GET /api/health`.
+- **Live menu drifts from the root CSVs.** The root `*_menu.csv` files are stale snapshots; the
+  ingest resolves Dish Keys against the **live** sheet tabs, not those CSVs. Always re-run the
+  ingest against live data (it fetches the menu tabs by gid).
+- **Setting `setMenuGid` makes the app trust the Sheet over the bundle.** If a tab is empty the
+  app falls back to the bundle, but if a tab is half-populated/mangled the app uses that. Use
+  `/api/health` (source = sheet/bundled) to see what each venue is actually reading.
+- **`source: "bundled"` in `/api/health`/`/api/build` means a gid is missing or the tab is
+  empty** — expected only before a venue's tab exists; otherwise investigate the gid.
