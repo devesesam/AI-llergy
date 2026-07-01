@@ -136,14 +136,16 @@ Map/Set iteration order. Same inputs → same output.
 - **`GET /api/health`** — per-venue data diagnostics: source (sheet/bundled), per-tier
   count/total/per-person, and **unresolvedDishes** (drive to zero before launch). `ok:true`
   when zero unresolved.
-- **Screens**: `/` venue picker → `/<venue>` builder (tier chips, guest stepper, per-guest
-  dietary rows) → `BuiltMenuResult`, which has a **"Guest view" ↔ "Kitchen docket"** toggle:
-  - *Guest view* — summary stats, shared table (with "added"/"dedicated for Guest N" badges),
-    a "Dietary additions" card, and per-guest panels (coverage badge + made-for-them / can-eat /
-    with-modification / not-suitable / no-data lists).
-  - *Kitchen docket* — decisive, no working notes: **Set Menu** (dish ×qty), **Dietary dishes**
-    (dedicated, "for Guest N"), **Dietary orders** per guest (plate / modify / do-not-serve).
-  Both print-friendly.
+- **Screens**: `/` venue picker → `/<venue>` builder → `BuiltMenuResult`.
+  - *Builder* — tier chips, guest-count stepper, and **one guest row per guest** (auto-populated
+    from the count, kept in sync as it changes). Each row has an **editable name** (→ "Guest N"
+    fallback) + allergen chips. No add/remove buttons; leave non-dietary guests blank.
+  - *Results* — a **"Guest view" ↔ "Kitchen docket"** toggle. The centrepiece is **"The table —
+    everything to make"**: ONE complete item list (tier + added + dedicated), dish names
+    Title-cased (`prettyName`), with badges — **"only for <name>"** (dedicated) and **"modified"**
+    + inline **"↳ modify for <name>: <substitution>"** when a guest needs a shared dish changed.
+    Plus a full **guest roster** (everyone, with requirements or "No requirements"). Guest view
+    adds coverage panels; docket adds a per-guest "do not serve" note. Both print-friendly.
 
 ---
 
