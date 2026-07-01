@@ -146,10 +146,14 @@ Map/Set iteration order. Same inputs → same output.
     + inline **"↳ modify for <name>: <substitution>"** when a guest needs a shared dish changed.
     Plus a full **guest roster** (everyone, with requirements or "No requirements") + coverage panels.
   - *Kitchen docket* — a **plain black-on-white one-page document** (no logo / venue title /
-    tagline / background; `body.smb-docket-mode` strips all page chrome). Just a "SET MENU — PARTY
-    OF N" heading + one bordered table: Qty / Dish / Notes, where Notes = "ONLY for <name>"
-    (dedicated) or "MODIFY for <name>: <action>" (the substitution trimmed to just the swap/remove
-    via `shortMod`, no "makes it…/adds…" tail). Prints straight to a chef's docket.
+    tagline / background; `body.smb-docket-mode` strips all page chrome). "SET MENU — PARTY OF N"
+    heading + a bordered Qty / Dish / Notes table + a GUESTS roster table. **Each distinct version
+    of a dish is its own row**: a base shared row (qty = `max(1, dishQty − #mods)`) plus one row per
+    modification ("MODIFY for <guests>: <swap>", qty = #guests, identical swaps grouped) and
+    dedicated dishes ("ONLY for <name>"). `shortMod` trims the swap to just the action (no
+    "makes it…/adds…" tail). Each guest's plate is evaluated against their OWN allergens, so a swap
+    that adds an allergen only ever lands on the plate of a guest who doesn't avoid it. Prints
+    straight to a chef's docket.
 
 ---
 
