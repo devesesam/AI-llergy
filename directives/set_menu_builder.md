@@ -84,49 +84,65 @@ unresolved key and reads `ok:true` at zero.**
 
 ---
 
-## 3. Builder algorithm (v1, deterministic) — `src/lib/build-set-menu.ts`
+## 3. Builder algorithm (v2, deterministic) — `src/lib/build-set-menu.ts`
 
-Inputs: `venue`, `tier`, `guestCount` G, `guests[]` (each = allergen IDs). Loaded: set-menu
-dishes + tier, `menuByKey` (allergen flags), `subsByDish` (substitutions).
+Inputs: `venue`, `tier`, `guestCount` G, `guests[]` (each = allergen IDs; **only guests with
+dietary needs are submitted** — the rest of the party is assumed non-dietary). Loaded: set-menu
+dishes + tier, `menuByKey` (tier allergen flags), `subsByDish`, and the **full à-la-carte menu**
+(`getMenu`) as the candidate pool.
 
-- **Budget**: `totalBudget = tierPerHead × G`. Base spread = all tier dishes (designed for 4);
-  unit price = Price ÷ Qty.
-- **Step A** — base spread at base portions.
-- **Step B — party scaling**: `G < 4` keep base (warn if base cost > budget); `G > 4` add
-  portions of highest-unit-price dishes first while `runningCost + unitPrice ≤ totalBudget`,
-  capped at `basePortions × ceil(G/4)` per dish; `G ≥ 12` → still estimate, plus a
-  "pre-arrange with the venue" banner.
-- **Step C — per-allergy guest**: run the ported `filterMenu` over the tier's matched menu
-  items → safe / caution (CAN BE) / modifiable (subs rescue) / excluded. A dish with no menu
-  match is **allergen-unknown** and never safe.
-- **Step D — fair share**: `accessiblePerHead = Σ base price(safe ∪ modifiable) ÷ 4` vs the
-  tier target. Adequate at ≥ 85%. (A guest with NO allergens counts ALL dishes, including
-  allergen-unknown ones.)
-- **Step E — same-tier rescue**: E.1 substitution rescue is folded into Step C. **E.2 from the
-  original plan (bump a safe dish's qty for an under-served guest) is intentionally NOT done**:
-  within a fixed tier it only duplicates a dish — it adds volume (already handled by Step B) but
-  cannot improve which distinct dishes a guest can access, so it would mislead. E.3 → if still
-  under-served, return an honest recommendation. It only suggests a different tier when a
-  HIGHER tier actually adds a dish the guest can eat (checked via `analyzeTierForGuest` across
-  all tiers); otherwise it recommends a dedicated dish. Never fabricate a menu.
-- **Fair-share badge**: "Fair share met" (≥85% of target) / "Below fair share" — framed on
-  spend, not dish count (a guest can eat most dishes yet still be below the spend target).
+**Prices:** tier dishes use their real prices; any à-la-carte dish with no price uses
+`DEFAULT_DISH_PRICE = $20` (placeholder until real menu prices exist — see §7).
 
-Deterministic: ties broken by unit price desc then name. Same inputs → same output.
+**Step A/B — standard menu** (unchanged from v1): build the tier, scale portions for the party
+under `totalBudget = tierPerHead × G` (`ceil(G/4)` cap per dish; `G ≥ 12` → estimate banner).
+
+**Coverage metric (Tom's, 0–1, threshold 0.80):** for each submitted guest,
+`coverage = min(1, ( Σ over dishes they can eat of  lineValue(dish) / eaters(dish) ) / tierPerHead)`.
+`eaters` of a *shared* dish = `tableSize − (submitted dietary guests who can't eat it)` (so a
+dish shared by the whole table dilutes value across everyone). A **dedicated** dish's eaters =
+the guest(s) it's plated for → full value. "Can eat" = safe OR modifiable (substitution); NOT
+excluded, caution, or allergen-unknown. Non-dietary guests can eat everything (incl. unknown).
+
+**Optimiser (`optimiseForGuests`) — shared-first waterfall:**
+1. **Phase 1 (shared):** while any dietary guest < 0.80, apply the best budget-feasible *shared*
+   action — **add** an à-la-carte dish within budget headroom, or **swap** (reduce a dish the
+   guest can't eat → fund one they can). Ranked by coverage-gain-per-dollar; coherence guard never
+   pushes an already-covered guest back under. Shared dishes dilute (eaters = table), so this lifts
+   guests only modestly — fine for mild/moderate restrictions.
+2. **Phase 2 (dedicated, capped):** for guests still < 0.80, plate up to
+   `MAX_DEDICATED_PER_GUEST = 2` **dedicated portions** (eaters = 1 → full value), swap-funded to
+   hold price/head. A dedicated portion **may duplicate a dish already on the shared table** (a
+   guest's own bowl of rice) — that's how it concentrates value. Stop at 0.80.
+3. **Best-effort:** if a guest still can't reach 0.80 within budget/cap, keep the shared table and
+   flag `coverage.bestEffort` + an honest recommendation. Never fabricate coverage.
+
+**Badge:** "Covered · 0.84" (≥ 0.80) / "Best effort · 0.62". Determinism: explicit stable
+tie-breaks (score → shared-before-dedicated → guests-helped → net cost → name); no reliance on
+Map/Set iteration order. Same inputs → same output.
+
+**Result shape:** `SharedDish.source = tier|added|dedicated` (+ `intendedFor` for dedicated);
+`GuestResult.coverage` + `safe/modifiable(amber)/caution/excluded/unknown/dedicated` lists;
+`BuildResult.optimiser {ran, actionsApplied, overBudget, allGuestsCovered}`.
 
 ---
 
 ## 4. API + screens
 
 - **`POST /api/build`** `{venue, tier, guestCount, guests:[{id, allergens[]}]}` → `{venue, tier,
-  budget, sharedMenu[], guests[], warnings[], meta:{estimateOnly, source}}`. 400 on unknown
-  venue/tier.
+  budget, sharedMenu[] (with source/intendedFor), guests[] (with coverage + dish lists),
+  warnings[], meta, optimiser}`. 400 on unknown venue/tier.
 - **`GET /api/health`** — per-venue data diagnostics: source (sheet/bundled), per-tier
   count/total/per-person, and **unresolvedDishes** (drive to zero before launch). `ok:true`
   when zero unresolved.
 - **Screens**: `/` venue picker → `/<venue>` builder (tier chips, guest stepper, per-guest
-  dietary rows reusing the allergen chips) → `BuiltMenuResult` (shared table + per-guest
-  panels + warnings; print-friendly).
+  dietary rows) → `BuiltMenuResult`, which has a **"Guest view" ↔ "Kitchen docket"** toggle:
+  - *Guest view* — summary stats, shared table (with "added"/"dedicated for Guest N" badges),
+    a "Dietary additions" card, and per-guest panels (coverage badge + made-for-them / can-eat /
+    with-modification / not-suitable / no-data lists).
+  - *Kitchen docket* — decisive, no working notes: **Set Menu** (dish ×qty), **Dietary dishes**
+    (dedicated, "for Guest N"), **Dietary orders** per guest (plate / modify / do-not-serve).
+  Both print-friendly.
 
 ---
 
@@ -145,28 +161,33 @@ A future improvement is extracting these into a shared package; out of scope for
 
 ## 6. Verification
 
-- `cd set-menu-builder && npm run build` passes; `npm run dev` then:
-  - `GET /api/health` → tier totals match the spreadsheet; unresolved count = the 3 dishes
-    still awaiting chef confirmation (see §2).
-  - `POST /api/build` Mr Go's `38`, G=4, no allergens → 8 dishes, per-head ≈ $35.63.
-  - G=6 → portions added, spread ≤ $228.
-  - G=4 + a guest `["gluten","dairy"]` → safe list only, fair-share short → honest
-    recommendation; Kisa shows substitutions where the chef has them (e.g. Beetroot/URFA).
+- `cd set-menu-builder && npm run build` passes; `npm run start` then `POST /api/build`:
+  - **No-dietary** → optimiser no-ops; menu identical to the scaled tier.
+  - **Moderate** (Mr Go's `44`, G=4, gluten+dairy) → covered ~0.83 via shared swaps, **0 dedicated**.
+  - **Heavy** (Mr Go's `44`, G=4, 7 allergies) → 2 **dedicated** portions, covered ~0.86, price/head ≤ $44.
+  - **Multi-guest** (Kisa `68`, G=8, vegan + gluten/dairy) → both covered, ≤ budget.
+  - Amber substitutions show real venue swaps for all three venues; same request twice → identical.
 
 ---
 
 ## 7. Status & roadmap
 
-- **v1 — Live.** Deployed to Netlify (own repo `devesesam/set-menu-builder` → intended at
-  setmenu.ai-lergy.co.nz) and tested live by the owner across all three venues. The three
-  set-menu Sheet tabs exist and their gids are wired in `venues.ts`
-  (kisa `395901294`, mr-gos `1707387833`, ombra `321541246`) → the app reads the live tabs
-  (bundled CSV is fallback only). Kisa URFA resolved. Smarter recommendation + spend-framed
-  fair-share badge shipped.
-- **Open**: chef to confirm the 3 remaining dish names (§2) so `/api/health` reads `ok:true`.
-  Confirm the Netlify env var `GOOGLE_SHEET_ID` = the live sheet and the `setmenu` subdomain DNS.
-- **Roadmap (optional)**: Course grouping/order, dessert handling, per-venue branding, and
-  extracting the copied libs into a shared package (see §5).
+- **v2 — Live.** Deployed to Netlify (`devesesam/set-menu-builder` → setmenu.ai-lergy.co.nz),
+  tested across all three venues. Set-menu tabs wired in `venues.ts` (kisa `395901294`,
+  mr-gos `1707387833`, ombra `321541246`); substitution tabs now wired for all three
+  (kisa `1265271651`, mr-gos `1639397504`, ombra `1976184234`). Mr Go's dish keys all resolved.
+- **v2 delivered (per Tom's brief, "Phase A"):** full-menu **dietary optimiser** (shared-first
+  waterfall → capped dedicated portions → best-effort), **Tom's 0–1 coverage score** (0.80
+  threshold), and a **kitchen-docket** view. Replaces v1's tier-only fair-share.
+- **⚠ Prices are a $20 placeholder.** Full à-la-carte menu prices are empty, so any dish the
+  optimiser pulls in is costed at `DEFAULT_DISH_PRICE = $20`. Budget math + coverage are
+  directionally right but not exact until real prices are added to the menu tabs' `Price` column
+  (then remove/relax the placeholder in `build-set-menu.ts`).
+- **Open**: real menu prices (above); chef to confirm the remaining Ombra `Slow cook lamb`
+  Dish Key (§2); confirm Netlify `GOOGLE_SHEET_ID` + `setmenu` DNS.
+- **Roadmap (Phase B / later)**: interactive drag-drop editor (two panels, live totals, per-guest
+  green/amber/red/grey grid), course grouping/dessert handling, saved bookings, >2 dedicated,
+  extracting copied libs into a shared package (§5).
 
 ---
 
