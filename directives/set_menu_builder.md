@@ -145,10 +145,11 @@ Map/Set iteration order. Same inputs → same output.
     Title-cased (`prettyName`), with badges — **"only for <name>"** (dedicated) and **"modified"**
     + inline **"↳ modify for <name>: <substitution>"** when a guest needs a shared dish changed.
     Plus a full **guest roster** (everyone, with requirements or "No requirements") + coverage panels.
-  - *Kitchen docket* — a **plain black-on-white printable document** (no logo / venue / background;
-    `body.smb-docket-mode` strips the app chrome). Simple bordered table (Qty / Dish / Notes, with
-    "ONLY for <name>" and "MODIFY for <name>: <sub>" in Notes) + a "DIETARY — DO NOT SERVE" table.
-    Made to print straight to a chef's docket.
+  - *Kitchen docket* — a **plain black-on-white one-page document** (no logo / venue title /
+    tagline / background; `body.smb-docket-mode` strips all page chrome). Just a "SET MENU — PARTY
+    OF N" heading + one bordered table: Qty / Dish / Notes, where Notes = "ONLY for <name>"
+    (dedicated) or "MODIFY for <name>: <action>" (the substitution trimmed to just the swap/remove
+    via `shortMod`, no "makes it…/adds…" tail). Prints straight to a chef's docket.
 
 ---
 
