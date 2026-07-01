@@ -91,8 +91,9 @@ dietary needs are submitted** — the rest of the party is assumed non-dietary).
 dishes + tier, `menuByKey` (tier allergen flags), `subsByDish`, and the **full à-la-carte menu**
 (`getMenu`) as the candidate pool.
 
-**Prices:** tier dishes use their real prices; any à-la-carte dish with no price uses
-`DEFAULT_DISH_PRICE = $20` (placeholder until real menu prices exist — see §7).
+**Prices:** the menu tabs are now priced for all venues, so à-la-carte candidates use their real
+prices. `DEFAULT_DISH_PRICE = $20` remains only as a fallback for the odd dish still missing a
+price (e.g. one Kisa item) — rare now, harmless.
 
 **Step A/B — standard menu** (unchanged from v1): build the tier, scale portions for the party
 under `totalBudget = tierPerHead × G` (`ceil(G/4)` cap per dish; `G ≥ 12` → estimate banner).
@@ -179,12 +180,17 @@ A future improvement is extracting these into a shared package; out of scope for
 - **v2 delivered (per Tom's brief, "Phase A"):** full-menu **dietary optimiser** (shared-first
   waterfall → capped dedicated portions → best-effort), **Tom's 0–1 coverage score** (0.80
   threshold), and a **kitchen-docket** view. Replaces v1's tier-only fair-share.
-- **⚠ Prices are a $20 placeholder.** Full à-la-carte menu prices are empty, so any dish the
-  optimiser pulls in is costed at `DEFAULT_DISH_PRICE = $20`. Budget math + coverage are
-  directionally right but not exact until real prices are added to the menu tabs' `Price` column
-  (then remove/relax the placeholder in `build-set-menu.ts`).
-- **Open**: real menu prices (above); chef to confirm the remaining Ombra `Slow cook lamb`
-  Dish Key (§2); confirm Netlify `GOOGLE_SHEET_ID` + `setmenu` DNS.
+- **Real menu prices now live.** Menu tabs are priced for all venues (mr-gos 31/31, ombra 27/27,
+  kisa 34/35), so coverage + budget use real à-la-carte prices; the `$20` fallback only covers the
+  one still-unpriced Kisa dish.
+- **`Slow cook lamb` (Ombra) is an intentional future dish** — not on the main menu yet, so its
+  Dish Key stays blank and it shows as "no allergen data / confirm with venue" on the set menu.
+  Leave it until Tom adds it to the menu tab. All other dish keys resolve.
+- **Open**: confirm Netlify `GOOGLE_SHEET_ID` = the live sheet + `setmenu` DNS.
+- **Known refinement (minor):** for a heavily-restricted guest whose only safe dishes are already
+  on the shared table, the optimiser can add both a shared copy AND a dedicated portion of the same
+  dish (e.g. two coconut sagos). Correct + within budget, just slightly redundant; the Phase B
+  editor will let staff dedupe, or Phase 1 could later prefer swaps over single-guest shared adds.
 - **Roadmap (Phase B / later)**: interactive drag-drop editor (two panels, live totals, per-guest
   green/amber/red/grey grid), course grouping/dessert handling, saved bookings, >2 dedicated,
   extracting copied libs into a shared package (§5).
