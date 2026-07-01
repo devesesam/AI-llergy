@@ -91,9 +91,9 @@ dietary needs are submitted** — the rest of the party is assumed non-dietary).
 dishes + tier, `menuByKey` (tier allergen flags), `subsByDish`, and the **full à-la-carte menu**
 (`getMenu`) as the candidate pool.
 
-**Prices:** the menu tabs are now priced for all venues, so à-la-carte candidates use their real
-prices. `DEFAULT_DISH_PRICE = $20` remains only as a fallback for the odd dish still missing a
-price (e.g. one Kisa item) — rare now, harmless.
+**Prices:** the menu tabs are priced, so à-la-carte candidates use their real prices. A dish with
+**no price is excluded from consideration** (`isPriced` filter) — never added, dedicated, or shown
+(e.g. Kisa's Ezmesi). No placeholder price. Tier dishes are always priced from the set-menu tab.
 
 **Step A/B — standard menu** (unchanged from v1): build the tier, scale portions for the party
 under `totalBudget = tierPerHead × G` (`ceil(G/4)` cap per dish; `G ≥ 12` → estimate banner).
@@ -144,8 +144,11 @@ Map/Set iteration order. Same inputs → same output.
     everything to make"**: ONE complete item list (tier + added + dedicated), dish names
     Title-cased (`prettyName`), with badges — **"only for <name>"** (dedicated) and **"modified"**
     + inline **"↳ modify for <name>: <substitution>"** when a guest needs a shared dish changed.
-    Plus a full **guest roster** (everyone, with requirements or "No requirements"). Guest view
-    adds coverage panels; docket adds a per-guest "do not serve" note. Both print-friendly.
+    Plus a full **guest roster** (everyone, with requirements or "No requirements") + coverage panels.
+  - *Kitchen docket* — a **plain black-on-white printable document** (no logo / venue / background;
+    `body.smb-docket-mode` strips the app chrome). Simple bordered table (Qty / Dish / Notes, with
+    "ONLY for <name>" and "MODIFY for <name>: <sub>" in Notes) + a "DIETARY — DO NOT SERVE" table.
+    Made to print straight to a chef's docket.
 
 ---
 
@@ -182,9 +185,9 @@ A future improvement is extracting these into a shared package; out of scope for
 - **v2 delivered (per Tom's brief, "Phase A"):** full-menu **dietary optimiser** (shared-first
   waterfall → capped dedicated portions → best-effort), **Tom's 0–1 coverage score** (0.80
   threshold), and a **kitchen-docket** view. Replaces v1's tier-only fair-share.
-- **Real menu prices now live.** Menu tabs are priced for all venues (mr-gos 31/31, ombra 27/27,
-  kisa 34/35), so coverage + budget use real à-la-carte prices; the `$20` fallback only covers the
-  one still-unpriced Kisa dish.
+- **Real menu prices live.** Menu tabs are priced for all venues (mr-gos 31/31, ombra 27/27,
+  kisa 34/35), so coverage + budget use real prices. Any still-unpriced à-la-carte dish (e.g.
+  Kisa's Ezmesi) is excluded from consideration — no placeholder.
 - **`Slow cook lamb` (Ombra) is an intentional future dish** — not on the main menu yet, so its
   Dish Key stays blank and it shows as "no allergen data / confirm with venue" on the set menu.
   Leave it until Tom adds it to the menu tab. All other dish keys resolve.
