@@ -126,17 +126,33 @@ top-up step. (Non-dietary guests are lifted purely by shared dishes.)
 tie-breaks (score → shared-before-dedicated → guests-helped → net cost → name); no reliance on
 Map/Set iteration order. Same inputs → same output.
 
+**Coverage lives in `src/lib/coverage-core.ts` (pure, shared).** The scoring formula
+(`eatersForShared`, `coverageNumerator`, `coverageScore`, `coverageMap`, `canEatShared`, and the
+`COVERAGE_THRESHOLD = 0.9` / `DESIGNED_FOR = 4` constants) was extracted so the **browser** can
+recompute coverage live as the planner edits the menu (Phase B), with **zero drift** — the server
+build imports the exact same functions. Inputs are plain data (`CoverageDish`, `CoverageGuest`);
+`build-set-menu.ts` adapts its `WorkingDish`/`GuestAccess` at the call sites (for a known dish,
+`itemKey === dishKey`, so the adaptation is lossless). Changing the metric = edit `coverage-core.ts`
+once; both server and client follow.
+
 **Result shape:** `SharedDish.source = tier|added|dedicated` (+ `intendedFor` for dedicated);
 `GuestResult.coverage` + `safe/modifiable(amber)/caution/excluded/unknown/dedicated` lists;
-`BuildResult.optimiser {ran, actionsApplied, overBudget, allGuestsCovered}`.
+`BuildResult.optimiser {ran, actionsApplied, overBudget, allGuestsCovered}`. For the interactive
+editor (Phase B), the result also carries **`catalog: CatalogDish[]`** (every priced à-la-carte dish,
+deduped by `looseKey`, sorted by name — the "add a dish" pool) and per-guest
+**`menuAccess {canEat[], modInstr{}, caution{}, excluded[]}`** (that guest's classification of the
+FULL menu by `looseKey`). `menuAccess.canEat` is the full safe∪modifiable set (incl. unpriced
+dishes) so client coverage matches the server; `excluded` is restricted to catalog dishes.
 
 ---
 
 ## 4. API + screens
 
 - **`POST /api/build`** `{venue, tier, guestCount, guests:[{id, allergens[]}]}` → `{venue, tier,
-  budget, sharedMenu[] (with source/intendedFor), guests[] (with coverage + dish lists),
-  warnings[], meta, optimiser}`. 400 on unknown venue/tier.
+  budget, sharedMenu[] (with source/intendedFor), catalog[] (addable priced dishes),
+  guests[] (with coverage + dish lists + menuAccess), warnings[], meta, optimiser}`. 400 on
+  unknown venue/tier. Stateless (10-min cache); the client edits its result in-browser and never
+  re-calls per edit (coverage recomputes locally via `coverage-core`).
 - **`GET /api/health`** — per-venue data diagnostics: source (sheet/bundled), per-tier
   count/total/per-person, and **unresolvedDishes** (drive to zero before launch). `ok:true`
   when zero unresolved.
@@ -144,11 +160,24 @@ Map/Set iteration order. Same inputs → same output.
   - *Builder* — tier chips, guest-count stepper, and **one guest row per guest** (auto-populated
     from the count, kept in sync as it changes). Each row has an **editable name** (→ "Guest N"
     fallback) + allergen chips. No add/remove buttons; leave non-dietary guests blank.
-  - *Results* — a **"Guest view" ↔ "Kitchen docket"** toggle. The centrepiece is **"The table —
-    everything to make"**: ONE complete item list (tier + added + dedicated), dish names
-    Title-cased (`prettyName`), with badges — **"only for <name>"** (dedicated) and **"modified"**
-    + inline **"↳ modify for <name>: <substitution>"** when a guest needs a shared dish changed.
-    Plus a full **guest roster** (everyone, with requirements or "No requirements") + coverage panels.
+  - *Results = a 2-stage flow* (`BuiltMenuResult.tsx`): **Edit → Confirm menu → Kitchen docket**
+    (replaces the old free Guest-view↔docket toggle). The editable menu is held in React state
+    (`menu: SharedDish[]`, seeded from `sharedMenu`); budget, per-head, coverage badges, and modify
+    notes all recompute live from that state via `coverage-core` — no server round-trip.
+    - *Edit stage* — centrepiece **"The table — everything to make"**: ONE complete list (tier +
+      added + dedicated), Title-cased names (`prettyName`), each row with **− / + qty steppers**
+      (remove at 0) and a live price; badges **"only for <name>"** (dedicated), **"modified"** +
+      inline **"↳ MODIFY for <name>: <sub>"**, and **"no allergen data"**. Live per-head / total
+      stats + an amber **over-budget** notice. The **guest roster** rows are now **expandable
+      dropdowns**: collapsed = name + allergens + live coverage badge; expanded = that guest's
+      AI-llergy breakdown from `menuAccess` (**Can eat / With a modification / Ask the kitchen /
+      Not suitable**), each eatable/modifiable dish with **＋ shared** and **＋ just for them**
+      buttons (`addDish` → increments an existing shared line, or appends `source:"added"` /
+      `source:"dedicated", intendedFor:[guestId]`). This **absorbs** the old standalone "Dietary
+      requirements" panels. A **Confirm menu** button (never disabled — **warn but allow**: an
+      amber summary flags under-covered guests / over-budget but the planner has final say).
+    - *Kitchen docket stage* — the docket below, **fed the edited menu**, with a **"← Back to
+      edit"** button so Confirm isn't a dead-end. `onReset` ("← Start over") returns to the inputs.
   - *Kitchen docket* — a **plain black-on-white one-page document** (no logo / venue title /
     tagline / background; `body.smb-docket-mode` strips all page chrome). "SET MENU — PARTY OF N"
     heading + a bordered Qty / Dish / Notes table + a GUESTS roster table. **Each distinct version
@@ -191,9 +220,18 @@ A future improvement is extracting these into a shared package; out of scope for
   tested across all three venues. Set-menu tabs wired in `venues.ts` (kisa `395901294`,
   mr-gos `1707387833`, ombra `321541246`); substitution tabs now wired for all three
   (kisa `1265271651`, mr-gos `1639397504`, ombra `1976184234`). Mr Go's dish keys all resolved.
-- **v2 delivered (per Tom's brief, "Phase A"):** full-menu **dietary optimiser** (shared-first
+- **v2 Phase A delivered (per Tom's brief):** full-menu **dietary optimiser** (shared-first
   waterfall → capped dedicated portions → best-effort), **Tom's 0–1 coverage score** (0.90
   threshold), and a **kitchen-docket** view. Replaces v1's tier-only fair-share.
+- **v2 Phase B delivered — interactive edit→confirm→docket flow.** The results screen is now a
+  planning surface: qty steppers with live price/coverage, per-guest dropdowns (their can-eat
+  breakdown) with **＋ shared / ＋ just-for-them** add buttons, then **Confirm menu** → the
+  print-ready docket (fed the edited menu; "← Back to edit" preserves edits). Coverage recomputes
+  in-browser via the extracted pure `src/lib/coverage-core.ts` (imported by the server too — no
+  drift); the build result now carries `catalog[]` + per-guest `menuAccess`. Confirm is
+  **warn-but-allow** (amber flags under-coverage / over-budget but never blocks). Drag-and-drop
+  from Tom's original brief was intentionally dropped in favour of steppers + ＋ (simpler, covers
+  the need).
 - **Real menu prices live.** Menu tabs are priced for all venues (mr-gos 31/31, ombra 27/27,
   kisa 34/35), so coverage + budget use real prices. Any still-unpriced à-la-carte dish (e.g.
   Kisa's Ezmesi) is excluded from consideration — no placeholder.
