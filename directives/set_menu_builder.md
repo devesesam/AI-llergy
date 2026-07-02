@@ -98,27 +98,31 @@ dishes + tier, `menuByKey` (tier allergen flags), `subsByDish`, and the **full �
 **Step A/B — standard menu** (unchanged from v1): build the tier, scale portions for the party
 under `totalBudget = tierPerHead × G` (`ceil(G/4)` cap per dish; `G ≥ 12` → estimate banner).
 
-**Coverage metric (Tom's, 0–1, threshold 0.80):** for each submitted guest,
+**Coverage metric (Tom's, 0–1, threshold 0.90 — applied to EVERY guest):** for each guest,
 `coverage = min(1, ( Σ over dishes they can eat of  lineValue(dish) / eaters(dish) ) / tierPerHead)`.
 `eaters` of a *shared* dish = `tableSize − (submitted dietary guests who can't eat it)` (so a
 dish shared by the whole table dilutes value across everyone). A **dedicated** dish's eaters =
 the guest(s) it's plated for → full value. "Can eat" = safe OR modifiable (substitution); NOT
 excluded, caution, or allergen-unknown. Non-dietary guests can eat everything (incl. unknown).
+**Threshold = 0.90 of the per-head price** (the ~10% is the tier's built-in margin — Tom's figure).
+Because it applies to everyone, a non-dietary guest is "under-covered" whenever the *table itself*
+is under-filled, so the optimiser fills the table to ≥ 0.90/head **by definition** — no separate
+top-up step. (Non-dietary guests are lifted purely by shared dishes.)
 
 **Optimiser (`optimiseForGuests`) — shared-first waterfall:**
-1. **Phase 1 (shared):** while any dietary guest < 0.80, apply the best budget-feasible *shared*
+1. **Phase 1 (shared):** while any guest < 0.90, apply the best budget-feasible *shared*
    action — **add** an à-la-carte dish within budget headroom, or **swap** (reduce a dish the
-   guest can't eat → fund one they can). Ranked by coverage-gain-per-dollar; coherence guard never
-   pushes an already-covered guest back under. Shared dishes dilute (eaters = table), so this lifts
-   guests only modestly — fine for mild/moderate restrictions.
-2. **Phase 2 (dedicated, capped):** for guests still < 0.80, plate up to
+   guest can't eat → fund one they can). Ranked by coverage-gain-per-dollar; the coherence guard
+   never pushes **any** already-covered guest back under 0.90 (so a swap funding a dietary guest
+   can't quietly under-fill the table for everyone else).
+2. **Phase 2 (dedicated, capped):** for *dietary* guests still < 0.90, plate up to
    `MAX_DEDICATED_PER_GUEST = 2` **dedicated portions** (eaters = 1 → full value), swap-funded to
    hold price/head. A dedicated portion **may duplicate a dish already on the shared table** (a
-   guest's own bowl of rice) — that's how it concentrates value. Stop at 0.80.
-3. **Best-effort:** if a guest still can't reach 0.80 within budget/cap, keep the shared table and
-   flag `coverage.bestEffort` + an honest recommendation. Never fabricate coverage.
+   guest's own bowl of rice) — that's how it concentrates value. Stop at 0.90.
+3. **Best-effort:** if a dietary guest still can't reach 0.90 within budget/cap, keep the shared
+   table and flag `coverage.bestEffort` + an honest recommendation. Never fabricate coverage.
 
-**Badge:** "Covered · 0.84" (≥ 0.80) / "Best effort · 0.62". Determinism: explicit stable
+**Badge:** "Covered · 0.94" (≥ 0.90) / "Best effort · 0.86". Determinism: explicit stable
 tie-breaks (score → shared-before-dedicated → guests-helped → net cost → name); no reliance on
 Map/Set iteration order. Same inputs → same output.
 
@@ -188,7 +192,7 @@ A future improvement is extracting these into a shared package; out of scope for
   mr-gos `1707387833`, ombra `321541246`); substitution tabs now wired for all three
   (kisa `1265271651`, mr-gos `1639397504`, ombra `1976184234`). Mr Go's dish keys all resolved.
 - **v2 delivered (per Tom's brief, "Phase A"):** full-menu **dietary optimiser** (shared-first
-  waterfall → capped dedicated portions → best-effort), **Tom's 0–1 coverage score** (0.80
+  waterfall → capped dedicated portions → best-effort), **Tom's 0–1 coverage score** (0.90
   threshold), and a **kitchen-docket** view. Replaces v1's tier-only fair-share.
 - **Real menu prices live.** Menu tabs are priced for all venues (mr-gos 31/31, ombra 27/27,
   kisa 34/35), so coverage + budget use real prices. Any still-unpriced à-la-carte dish (e.g.
