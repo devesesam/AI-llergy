@@ -13,13 +13,14 @@
 |---|---|---|---|---|
 | **`devesesam/ai-llergy-webapp`** | nested `ai-llergy-webapp/.git` | **`master`** | The allergen-filter Next.js app (`src/`, etc.) | **Netlify deploys this** → ai-lergy.co.nz |
 | **`devesesam/set-menu-builder`** | nested `set-menu-builder/.git` | **`master`** | The Set Menu Builder Next.js app (separate product, shares the same Google Sheet) | **Netlify deploys this** → setmenu.ai-lergy.co.nz |
-| **`devesesam/AI-llergy`** | workspace root `.git` | **`workspace`** | `directives/`, `execution/` scripts, CSVs/PDFs/data, **and tracked copies of both apps' files** | Full-project backup; **NOT deployed** |
+| **`devesesam/AI-llergy`** | workspace root `.git` | **`workspace`** | `directives/`, `execution/` scripts, CSVs/PDFs/data (`resources/`), **and a tracked copy of the `ai-llergy-webapp/` files**. **`set-menu-builder/` is NOT tracked here** — it lives only in its own repo, shown as `?? set-menu-builder/` (untracked); do **not** `git add` it into the outer repo (nested-repo/submodule mess). | Full-project backup; **NOT deployed** |
 
 - **Deploy an allergen-app change** → commit + push the **`ai-llergy-webapp`** nested repo's `master`.
 - **Deploy a set-menu-builder change** → commit + push the **`set-menu-builder`** nested repo's `master`.
-- **Back up docs/scripts/data** → commit + push the **outer** repo's `workspace`. (It also tracks copies
-  of both apps' files, which is why `git status` at the root shows app files as "modified" — that overlap
-  is what masks the nesting and confuses people.)
+- **Back up docs/scripts/data** → commit + push the **outer** repo's `workspace`. (It also tracks a copy
+  of the `ai-llergy-webapp/` files, which is why `git status` at the root shows those app files as
+  "modified" — that overlap is what masks the nesting and confuses people. `set-menu-builder/` is
+  **untracked** here — it has no outer copy; back it up via its own repo only.)
 - Each nested app is independent: a code change in one does NOT redeploy the other.
 - The outer repo's history goes back to Feb 2026, all authored by the owner. It is *their* repo, not
   something an agent created.

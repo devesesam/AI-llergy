@@ -72,6 +72,13 @@ Columns: a **name** column, `Ingredients`, `Price`, then one column per allergen
   to work without re-registering it in `allergens.ts`.
 - Extra columns the app doesn't know are harmless — they're ignored (it only reads columns listed in
   `allergens.ts`).
+- **`Include in set menu` column (shared with the Set Menu Builder).** A `YES`/`NO` column (blank ⇒
+  `NO`) now lives on these menu tabs. The **allergen app ignores it** (it's just another unknown
+  column). The **Set Menu Builder** (`setmenu.ai-lergy.co.nz`, `set-menu-builder/`) reads it as an
+  **opt-in flag** — only `YES` dishes may be AUTO-added to a generated set menu; `NO`/blank dishes
+  (desserts, Kisa "lunch plates") never auto-populate but stay manually addable. ⚠ Because blank ⇒
+  `NO`, **every set-menu-eligible dish must be explicitly `YES`**, or that app's optimiser has nothing
+  to add. Don't delete/rename this column. See `directives/set_menu_builder.md` §3.
 
 ## 4. Substitutions tab schema
 

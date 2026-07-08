@@ -217,7 +217,13 @@ app changes them, **re-sync**:
 - **`substitutions.ts`** — parsing + `normalizeDishName` (also the set-menu JOIN key).
 - `google-sheets.ts`, `menu-service.ts`, `filter-menu.ts` are ported/trimmed (AI + confidence
   paths dropped). Less churn-prone but keep the column logic aligned.
-A future improvement is extracting these into a shared package; out of scope for v1.
+- ⚠ **`menu-service.ts` has DIVERGED from prod** — it adds `MenuItem.includeInSetMenu` +
+  `readIncludeInSetMenu()` (the "Include in set menu" opt-in flag, §3), which the allergen app does
+  NOT have. When re-syncing from prod, **re-apply that addition** — don't blindly overwrite the file.
+- **`coverage-core.ts` is NOT a copy** — it's a set-menu-builder-only pure module (the single source
+  of truth for Tom's coverage metric, imported by both the server build and the client editor). No
+  prod equivalent; nothing to sync.
+A future improvement is extracting the shared copies into a package; out of scope for v1.
 
 ---
 
