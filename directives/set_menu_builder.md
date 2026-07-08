@@ -95,6 +95,17 @@ dishes + tier, `menuByKey` (tier allergen flags), `subsByDish`, and the **full �
 **no price is excluded from consideration** (`isPriced` filter) — never added, dedicated, or shown
 (e.g. Kisa's Ezmesi). No placeholder price. Tier dishes are always priced from the set-menu tab.
 
+**"Include in set menu" flag (opt-in auto-populate).** Each venue's MAIN menu tab has an **"Include
+in set menu"** column (YES/NO; **blank ⇒ NO**), parsed into `MenuItem.includeInSetMenu`
+(`menu-service.ts` `readIncludeInSetMenu`, tolerant header match, only exact "YES" ⇒ true). The
+**optimiser's auto candidate pools are gated on this flag** — `candidateItems` (Phase 1 shared adds)
+and the Phase 2 dedicated candidates both require `item.includeInSetMenu`. This keeps **desserts (all
+venues) and Kisa "lunch plates" out of every auto-generated draft** (standard + dietary). They are
+**still manually addable** — `buildCatalog` and the tier build are NOT gated, so the full priced menu
+(incl. desserts/lunch plates) still appears in the editor dropdowns. ⚠ Because blank ⇒ NO, the column
+**must be populated with YES on every set-menu-eligible dish** or the optimiser has nothing to
+auto-add; the flag is safe for the allergen app (it ignores unknown columns).
+
 **Step A/B — standard menu** (unchanged from v1): build the tier, scale portions for the party
 under `totalBudget = tierPerHead × G` (`ceil(G/4)` cap per dish; `G ≥ 12` → estimate banner).
 
@@ -159,16 +170,23 @@ dishes) so client coverage matches the server; `excluded` is restricted to catal
 - **Screens**: `/` venue picker → `/<venue>` builder → `BuiltMenuResult`.
   - *Builder* — tier chips, guest-count stepper, and **one guest row per guest** (auto-populated
     from the count, kept in sync as it changes). Each row has an **editable name** (→ "Guest N"
-    fallback) + allergen chips. No add/remove buttons; leave non-dietary guests blank.
+    fallback) + allergen chips. No add/remove buttons; leave non-dietary guests blank. (Internal
+    tool — the old "tables of 12+ arranged with the venue" hint was removed; 12+ still scales
+    silently via `ceil(G/4)`.)
   - *Results = a 2-stage flow* (`BuiltMenuResult.tsx`): **Edit → Confirm menu → Kitchen docket**
     (replaces the old free Guest-view↔docket toggle). The editable menu is held in React state
     (`menu: SharedDish[]`, seeded from `sharedMenu`); budget, per-head, coverage badges, and modify
     notes all recompute live from that state via `coverage-core` — no server round-trip.
-    - *Edit stage* — centrepiece **"The table — everything to make"**: ONE complete list (tier +
-      added + dedicated), Title-cased names (`prettyName`), each row with **− / + qty steppers**
-      (remove at 0) and a live price; badges **"only for <name>"** (dedicated), **"modified"** +
-      inline **"↳ MODIFY for <name>: <sub>"**, and **"no allergen data"**. Live per-head / total
-      stats + an amber **over-budget** notice. The **guest roster** rows are now **expandable
+    - *Edit stage* — centrepiece **"Set Menu draft"** (renamed from "The table — everything to
+      make"): ONE complete list (tier + added + dedicated), Title-cased names (`prettyName`), each
+      row with **− / + qty steppers** (remove at 0) and a live price; badges **"only for <name>"**
+      (dedicated), **"modified"** + inline **"↳ MODIFY for <name>: <sub>"**, and **"no allergen
+      data"**. A **general "Add another dish from menu" dropdown** sits at the foot of the draft card
+      (divided off) — lists the full `catalog` (incl. desserts/lunch plates) with a single **＋ add**
+      → `addDish(key, "shared")`, for non-dietary/operational changes. The financial stat row shows
+      per-head / total food / target budget + a **contextual tile** ("remaining balance" under
+      budget, flips to "over per head" when over) + guest count; an amber over-budget notice shows
+      the factual amount (no "you have the final say" reassurance copy). The **guest roster** rows are expandable
       dropdowns**: collapsed = name + allergens + live coverage badge; expanded = that guest's
       AI-llergy breakdown from `menuAccess` (**Can eat / With a modification / Ask the kitchen /
       Not suitable**), each eatable/modifiable dish with **＋ shared** and **＋ just for them**
@@ -232,6 +250,15 @@ A future improvement is extracting these into a shared package; out of scope for
   **warn-but-allow** (amber flags under-coverage / over-budget but never blocks). Drag-and-drop
   from Tom's original brief was intentionally dropped in favour of steppers + ＋ (simpler, covers
   the need).
+- **v2 Phase C delivered — internal-tool tweaks (Tom).** For team-only internal use: removed
+  guest-facing/reassurance copy (the "tables of 12+" hint + the "you have the final say" / "guide,
+  not a hard limit" sentences); added a **contextual budget tile** ("remaining balance" under budget,
+  "over per head" when over); renamed the draft section to **"Set Menu draft"**; added a general
+  **"Add another dish from menu"** dropdown (foot of the draft card, full catalog, shared add); and
+  the **"Include in set menu" opt-in flag** (§3) so **desserts (all venues) + Kisa "lunch plates"
+  never auto-populate** (standard draft or dietary optimiser) yet stay manually addable. Tom has
+  populated the column (YES/NO) on all three venues' menu tabs. Verified live: optimiser auto-adds
+  only YES dishes; catalog still lists desserts + lunch plates for manual add.
 - **Real menu prices live.** Menu tabs are priced for all venues (mr-gos 31/31, ombra 27/27,
   kisa 34/35), so coverage + budget use real prices. Any still-unpriced à-la-carte dish (e.g.
   Kisa's Ezmesi) is excluded from consideration — no placeholder.
