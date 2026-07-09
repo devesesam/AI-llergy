@@ -109,39 +109,49 @@ auto-add; the flag is safe for the allergen app (it ignores unknown columns).
 **Step A/B — standard menu** (unchanged from v1): build the tier, scale portions for the party
 under `totalBudget = tierPerHead × G` (`ceil(G/4)` cap per dish; `G ≥ 12` → estimate banner).
 
-**Coverage metric (Tom's, 0–1, threshold 0.90 — applied to EVERY guest):** for each guest,
+**Coverage metric (Tom's, 0–1, SPLIT threshold — 0.90 non-dietary / 0.85 dietary):** for each guest,
 `coverage = min(1, ( Σ over dishes they can eat of  lineValue(dish) / eaters(dish) ) / tierPerHead)`.
 `eaters` of a *shared* dish = `tableSize − (submitted dietary guests who can't eat it)` (so a
 dish shared by the whole table dilutes value across everyone). A **dedicated** dish's eaters =
 the guest(s) it's plated for → full value. "Can eat" = safe OR modifiable (substitution); NOT
 excluded, caution, or allergen-unknown. Non-dietary guests can eat everything (incl. unknown).
-**Threshold = 0.90 of the per-head price** (the ~10% is the tier's built-in margin — Tom's figure).
-Because it applies to everyone, a non-dietary guest is "under-covered" whenever the *table itself*
-is under-filled, so the optimiser fills the table to ≥ 0.90/head **by definition** — no separate
-top-up step. (Non-dietary guests are lifted purely by shared dishes.)
+**Threshold is per-guest (`thresholdFor(isDietary)` in `coverage-core.ts`):**
+- **Non-dietary → 0.90** (the ~10% is the tier's built-in margin — Tom's figure; also the intended
+  "fill the table properly" level). A non-dietary guest is "under-covered" whenever the *table itself*
+  is under-filled, so the optimiser fills the table to ≥ 0.90/head **by definition** — no top-up step.
+- **Dietary → 0.85.** The even-split metric **under-counts** a restricted guest: they eat more of
+  their few safe dishes than a `1/eaters` share (they skip everything else), so their true
+  satisfaction is higher than the score shows. The lower bar compensates for that shared-dish
+  dilution (rather than a made-up consumption multiplier). Non-dietary guests can eat everything → the
+  most alternatives → never the under-counted one (conservation: whatever the metric under-credits a
+  restricted guest, it over-credits the unrestricted ones), so their bar stays at 0.90. Net effect:
+  the optimiser stops topping dietary guests up sooner → fewer dedicated/added dishes for them, less
+  over-catering. (Decided with Tom after he noted dietary guests naturally take more of what they can
+  eat; modelling that per-guest is arbitrary, so we moved the pass-line instead.)
 
-**Optimiser (`optimiseForGuests`) — shared-first waterfall:**
-1. **Phase 1 (shared):** while any guest < 0.90, apply the best budget-feasible *shared*
-   action — **add** an à-la-carte dish within budget headroom, or **swap** (reduce a dish the
+**Optimiser (`optimiseForGuests`) — shared-first waterfall (each guest to THEIR threshold):**
+1. **Phase 1 (shared):** while any guest is below their threshold, apply the best budget-feasible
+   *shared* action — **add** an à-la-carte dish within budget headroom, or **swap** (reduce a dish the
    guest can't eat → fund one they can). Ranked by coverage-gain-per-dollar; the coherence guard
-   never pushes **any** already-covered guest back under 0.90 (so a swap funding a dietary guest
-   can't quietly under-fill the table for everyone else).
-2. **Phase 2 (dedicated, capped):** for *dietary* guests still < 0.90, plate up to
+   never pushes **any** already-covered guest back under *their* threshold.
+2. **Phase 2 (dedicated, capped):** for *dietary* guests still < 0.85, plate up to
    `MAX_DEDICATED_PER_GUEST = 2` **dedicated portions** (eaters = 1 → full value), swap-funded to
    hold price/head. A dedicated portion **may duplicate a dish already on the shared table** (a
-   guest's own bowl of rice) — that's how it concentrates value. Stop at 0.90.
-3. **Best-effort:** if a dietary guest still can't reach 0.90 within budget/cap, keep the shared
+   guest's own bowl of rice) — that's how it concentrates value. Stop at 0.85.
+3. **Best-effort:** if a dietary guest still can't reach 0.85 within budget/cap, keep the shared
    table and flag `coverage.bestEffort` + an honest recommendation. Never fabricate coverage.
 
-**Badge:** "Covered · 0.94" (≥ 0.90) / "Best effort · 0.86". Determinism: explicit stable
+**Badge:** "Covered" once a guest is ≥ their threshold (0.90 / 0.85) / else "Best effort · 0.8x"
+(`GuestResult.coverage.threshold` carries the per-guest bar). Determinism: explicit stable
 tie-breaks (score → shared-before-dedicated → guests-helped → net cost → name); no reliance on
 Map/Set iteration order. Same inputs → same output.
 
 **Coverage lives in `src/lib/coverage-core.ts` (pure, shared).** The scoring formula
-(`eatersForShared`, `coverageNumerator`, `coverageScore`, `coverageMap`, `canEatShared`, and the
-`COVERAGE_THRESHOLD = 0.9` / `DESIGNED_FOR = 4` constants) was extracted so the **browser** can
-recompute coverage live as the planner edits the menu (Phase B), with **zero drift** — the server
-build imports the exact same functions. Inputs are plain data (`CoverageDish`, `CoverageGuest`);
+(`eatersForShared`, `coverageNumerator`, `coverageScore`, `coverageMap`, `canEatShared`, the
+`COVERAGE_THRESHOLD = 0.9` / `COVERAGE_THRESHOLD_DIETARY = 0.85` / `DESIGNED_FOR = 4` constants, and
+the `thresholdFor(isDietary)` helper) was extracted so the **browser** can recompute coverage +
+pass/fail live as the planner edits the menu (Phase B), with **zero drift** — the server build imports
+the exact same functions/constants. Inputs are plain data (`CoverageDish`, `CoverageGuest`);
 `build-set-menu.ts` adapts its `WorkingDish`/`GuestAccess` at the call sites (for a known dish,
 `itemKey === dishKey`, so the adaptation is lossless). Changing the metric = edit `coverage-core.ts`
 once; both server and client follow.
@@ -265,6 +275,13 @@ A future improvement is extracting the shared copies into a package; out of scop
   never auto-populate** (standard draft or dietary optimiser) yet stay manually addable. Tom has
   populated the column (YES/NO) on all three venues' menu tabs. Verified live: optimiser auto-adds
   only YES dishes; catalog still lists desserts + lunch plates for manual add.
+- **Split coverage threshold delivered — 0.90 non-dietary / 0.85 dietary** (§3). Dietary guests
+  naturally eat more of the fewer dishes they can have, so the even-split score under-counts them; a
+  lower bar compensates (vs an arbitrary consumption multiplier). Non-dietary stay at 0.90 (they're
+  never the under-counted side — conservation). Implemented via `thresholdFor()` in `coverage-core.ts`,
+  used by the optimiser stop/guard, Phase-2 loop, badges, and the client. Verified: dietary guests
+  settle ~0.85 with fewer top-up dishes (Kisa 58/party 8/2 dietary: food $449→$419, actions 11→9,
+  all covered), non-dietary held at 0.90, a 7-allergy guest at 0.86 now reads "Covered" (was best-effort).
 - **Real menu prices live.** Menu tabs are priced for all venues (mr-gos 31/31, ombra 27/27,
   kisa 34/35), so coverage + budget use real prices. Any still-unpriced à-la-carte dish (e.g.
   Kisa's Ezmesi) is excluded from consideration — no placeholder.
