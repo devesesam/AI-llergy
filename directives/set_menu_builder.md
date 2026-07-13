@@ -204,17 +204,26 @@ dishes) so client coverage matches the server; `excluded` is restricted to catal
       `source:"dedicated", intendedFor:[guestId]`). This **absorbs** the old standalone "Dietary
       requirements" panels. A **Confirm menu** button (never disabled — **warn but allow**: an
       amber summary flags under-covered guests / over-budget but the planner has final say).
-    - *Kitchen docket stage* — the docket below, **fed the edited menu**, with a **"← Back to
-      edit"** button so Confirm isn't a dead-end. `onReset` ("← Start over") returns to the inputs.
+    - *Confirmed stage* — the printable cards below, **fed the edited menu**, with a **"← Back to
+      edit"** button (Confirm isn't a dead-end), **Print**, and a **"Kitchen docket ↔ Waiter card"**
+      toggle (`docView`). Both cards render under `body.smb-docket-mode` (chrome stripped) and print
+      via the same button. `onReset` ("← Start over") returns to the inputs.
   - *Kitchen docket* — a **plain black-on-white one-page document** (no logo / venue title /
-    tagline / background; `body.smb-docket-mode` strips all page chrome). "SET MENU — PARTY OF N"
-    heading + a bordered Qty / Dish / Notes table + a GUESTS roster table. **Each distinct version
-    of a dish is its own row**: a base shared row (qty = `max(1, dishQty − #mods)`) plus one row per
-    modification ("MODIFY for <guests>: <swap>", qty = #guests, identical swaps grouped) and
-    dedicated dishes ("ONLY for <name>"). `shortMod` trims the swap to just the action (no
-    "makes it…/adds…" tail). Each guest's plate is evaluated against their OWN allergens, so a swap
-    that adds an allergen only ever lands on the plate of a guest who doesn't avoid it. Prints
-    straight to a chef's docket.
+    tagline / background). "SET MENU — PARTY OF N" heading + a bordered Qty / Dish / Notes table + a
+    GUESTS roster table. Each dish is shown **once at its costed qty**; modifications are grouped
+    plating notes on that row — **"MODIFY for <guests>: <swap> (reason)"** — and dedicated dishes read
+    **"ONLY for <name>"**. `shortMod` keeps the **reason** (e.g. "…→ Garlic Toum (dairy-free)" — Tom's
+    ask) and drops only the "— note: adds …" tail (the introduced allergen is already guaranteed safe
+    for that guest). Each guest's plate is evaluated against their OWN allergens, so a swap that adds
+    an allergen only ever lands on the plate of a guest who doesn't avoid it. Prints straight to a
+    chef's docket.
+  - *Waiter card* (front-of-house, printable) — "DISH PLACEMENT — PARTY OF N": per dish, **who to
+    place it for** — dedicated → **"ONLY <name>"**; shared → **"whole table"** or **"NOT <names>
+    (<their allergens>)"** (the dietary guests who can't eat it), plus a light **"<name>: modified
+    portion"** note where a guest gets a tweaked plate. Reuses `canEatShared` from `coverage-core` so
+    "who can eat what" matches the coverage engine exactly; allergen-unknown shared dishes list all
+    dietary guests as "NOT" (never served to an allergy guest unconfirmed). Guests referenced by
+    name/number (no seating geometry is collected). Component `WaiterCard` in `BuiltMenuResult.tsx`.
 
 ---
 
@@ -282,6 +291,12 @@ A future improvement is extracting the shared copies into a package; out of scop
   used by the optimiser stop/guard, Phase-2 loop, badges, and the client. Verified: dietary guests
   settle ~0.85 with fewer top-up dishes (Kisa 58/party 8/2 dietary: food $449→$419, actions 11→9,
   all covered), non-dietary held at 0.90, a 7-allergy guest at 0.86 now reads "Covered" (was best-effort).
+- **v2 Phase D delivered — docket substitution reason + waiter card (Tom).** Front-end only.
+  (1) The kitchen docket now shows **WHY** a swap is made — `shortMod` keeps the reason
+  ("…→ Garlic Toum (dairy-free)") instead of stripping it. (2) A new printable **Waiter card**
+  (dish-placement: "whole table" / "NOT <name> (allergens)" / "ONLY <name>" + "modified portion"
+  notes), toggled beside the kitchen docket (`docView`). Reuses `canEatShared` — no backend/coverage
+  change. See §4.
 - **Real menu prices live.** Menu tabs are priced for all venues (mr-gos 31/31, ombra 27/27,
   kisa 34/35), so coverage + budget use real prices. Any still-unpriced à-la-carte dish (e.g.
   Kisa's Ezmesi) is excluded from consideration — no placeholder.
