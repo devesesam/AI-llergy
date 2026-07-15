@@ -156,7 +156,40 @@ keep the table, flag `coverage.bestEffort` + honest recommendation. Never fabric
 **Badge:** "Covered" once a guest is ≥ their threshold (0.90 / 0.85) / else "Best effort · 0.8x"
 (`GuestResult.coverage.threshold` carries the per-guest bar). Determinism: explicit stable tie-breaks
 (**tier → score → kind (bump/add/swap/ded) → guests-helped → net cost → name**); no reliance on
-Map/Set iteration order. Same inputs → same output. Coverage metric is unchanged (`safe ∪ modifiable`).
+Map/Set iteration order. Same inputs → same output.
+
+> **⚠ Phase F (current) supersedes the "prefer safe" wording above — read this.** The optimiser now
+> **drives off SAFE coverage** (`toCoverageGuest` uses `safeKeys`, not `canEat`): a dietary guest "can
+> eat" a dish only if it's *safe* for them, so a modifiable dish never raises coverage and is never
+> added for coverage. The optimiser feeds each dietary guest **real safe food** (dedicated safe plates,
+> **shared** between same-restriction guests, `MAX_DEDICATED_PER_GUEST = 4`) — **flexing the tier** to
+> fund it (trims dishes the guest can't eat) — until their **safe** coverage hits threshold, or it runs
+> out of room. **Modifications are the waterfall's last rung:** they only count (and show) for a guest
+> that couldn't be safe-covered, and then they're genuinely served. The **shown score is EFFECTIVE**:
+> `safe` coverage if we safe-covered them (mods dropped), else `full` (`safe ∪ modifiable`, mods
+> served) — computed in `buildGuestResult` (server) and `liveCoverage` (client) from `safeNum`/`fullNum`
+> so **the number always matches the final served menu** (no "count-then-hide" — a hard requirement
+> from Sam). The client derives safe keys as `menuAccess.canEat` **minus** `modInstr` keys and
+> **suppresses MODIFY notes** (docket + waiter + draft) for guests it safe-covered; the waiter card
+> treats a safe-covered guest as NOT eating dishes they'd only take modified.
+>
+> **Irreducible trade-off (measured, documented so nobody "fixes" it):** to feed a restricted guest
+> near budget the tool MUST reallocate budget from standard dishes they can't eat → so **you cannot**
+> have all of {fewer mods, fewer off-menu adds, standard tier untouched} at once. Protecting the tier
+> was tried and **starves restricted guests** (0.38–0.61 best-effort — a party of 4 has no scaled
+> excess to reclaim). Decision (Sam): **feed the guests, let the tier flex.** Cost: big near-budget
+> parties get a busier, more à-la-carte menu (standard dishes trimmed); a genuinely un-feedable guest
+> (e.g. 7 allergies at a meat venue) reads honestly as best-effort with the mods they need.
+
+**Coverage lives in `src/lib/coverage-core.ts` (pure, shared).** The scoring formula
+(`eatersForShared`, `coverageNumerator`, `coverageScore`, `coverageMap`, `canEatShared`, the
+`COVERAGE_THRESHOLD = 0.9` / `COVERAGE_THRESHOLD_DIETARY = 0.85` / `DESIGNED_FOR = 4` constants, and
+the `thresholdFor(isDietary)` helper) was extracted so the **browser** can recompute coverage +
+pass/fail live as the planner edits the menu (Phase B), with **zero drift** — the server build imports
+the exact same functions/constants. Inputs are plain data (`CoverageDish`, `CoverageGuest`);
+`build-set-menu.ts` adapts its `WorkingDish`/`GuestAccess` at the call sites (for a known dish,
+`itemKey === dishKey`, so the adaptation is lossless). Changing the metric = edit `coverage-core.ts`
+once; both server and client follow.
 
 **Coverage lives in `src/lib/coverage-core.ts` (pure, shared).** The scoring formula
 (`eatersForShared`, `coverageNumerator`, `coverageScore`, `coverageMap`, `canEatShared`, the
@@ -318,6 +351,18 @@ A future improvement is extracting the shared copies into a package; out of scop
   MODIFY notes **6→4**, dietary now get on-menu extras (Hummus→G2, Muhammara+Tursu→G1); moderate case
   1 off-menu / 1 mod. Keeps the standard tier intact (vs the old swap-gutting), so big-party spend runs
   nearer budget — user confirmed that's the desired "deliver the paid-for menu" behaviour.
+- **v2 Phase F delivered — feed safe food, modifications as the true last resort (Tom/staff).** The
+  optimiser now **drives off SAFE coverage** (§3 ⚠ block): it feeds each dietary guest real dishes they
+  can *fully* eat (dedicated safe plates, **shared** between same-restriction guests, cap 4), flexing
+  the tier to fund it, so **modifications only remain for a guest that genuinely can't be safe-covered**
+  and are then actually served. The shown score is **effective** (safe if safe-covered, else full) so
+  it always matches the served menu (Sam's "no count-then-hide" rule); the client suppresses now-
+  unneeded MODIFY notes on the docket + waiter + draft. Verified: **0 mods** on party-8 (2 dietary),
+  moderate, mild, and multi-dietary (2 gluten guests **share** their plates); a 7-allergy guest is the
+  only best-effort (0.06 — honestly un-feedable at a meat venue); determinism + no-dietary unchanged;
+  every shown score == server score. **Documented the irreducible trade-off** (can't have fewer mods +
+  fewer off-menu + tier untouched near budget); Sam chose feed-the-guests + let-the-tier-flex, so big
+  near-budget parties get a busier, more à-la-carte menu.
 - **Real menu prices live.** Menu tabs are priced for all venues (mr-gos 31/31, ombra 27/27,
   kisa 34/35), so coverage + budget use real prices. Any still-unpriced à-la-carte dish (e.g.
   Kisa's Ezmesi) is excluded from consideration — no placeholder.
