@@ -129,22 +129,34 @@ excluded, caution, or allergen-unknown. Non-dietary guests can eat everything (i
   over-catering. (Decided with Tom after he noted dietary guests naturally take more of what they can
   eat; modelling that per-guest is arbitrary, so we moved the pass-line instead.)
 
-**Optimiser (`optimiseForGuests`) — shared-first waterfall (each guest to THEIR threshold):**
-1. **Phase 1 (shared):** while any guest is below their threshold, apply the best budget-feasible
-   *shared* action — **add** an à-la-carte dish within budget headroom, or **swap** (reduce a dish the
-   guest can't eat → fund one they can). Ranked by coverage-gain-per-dollar; the coherence guard
-   never pushes **any** already-covered guest back under *their* threshold.
-2. **Phase 2 (dedicated, capped):** for *dietary* guests still < 0.85, plate up to
-   `MAX_DEDICATED_PER_GUEST = 2` **dedicated portions** (eaters = 1 → full value), swap-funded to
-   hold price/head. A dedicated portion **may duplicate a dish already on the shared table** (a
-   guest's own bowl of rice) — that's how it concentrates value. Stop at 0.85.
-3. **Best-effort:** if a dietary guest still can't reach 0.85 within budget/cap, keep the shared
-   table and flag `coverage.bestEffort` + an honest recommendation. Never fabricate coverage.
+**Optimiser (`optimise`) — priority ladder (each guest to THEIR threshold). Tom's rule (Phase E):
+prefer an extra of an on-menu dish the guest eats SAFELY, then off-menu SAFE, and a MODIFIED dish is
+the absolute last resort.** Every candidate `Action` carries a **`tier`** (primary sort in `pickBest`,
+below score): Phase 1 keeps looping while any guest is under their threshold, gathering:
+- **Tier 0 — on-menu safe extra** (`onMenuSafeExtraActions`): a **dedicated portion of a dish already
+  on the set menu** that an under-covered *dietary* guest eats **safely** (`safeKeys`, not merely
+  modifiable). Full value to that guest; scoped to dietary need (all-non-dietary drafts are unchanged);
+  capped by `MAX_DEDICATED_PER_GUEST`; picks a *different* safe dish for a 2nd extra (variety). We first
+  tried a shared qty **bump** per Tom's read of "a whole extra dish", but a bump dilutes across all
+  eaters → in testing it spent the whole budget inching one guest up while over-catering everyone, so a
+  dedicated portion is used (mechanism isolated in that one helper). Off-menu-gutting is avoided — the
+  standard tier stays intact.
+- **Tier 1 — off-menu safe:** the existing off-menu shared **add** / **swap** (`candidateItems`) when
+  ≥1 under-covered guest eats it **safely** (`safeHelps`) — this also covers non-dietary table-fill
+  (they eat everything safely).
+- **Tier 2 — modified, last resort:** an add/swap whose only benefit to a dietary guest is via a
+  **modifiable** dish. Chosen only when no Tier-0/1 action helps.
+
+**Phase 2 (dedicated, capped) — the concentrator fallback** for *dietary* guests still < 0.85 that
+Phase 1 couldn't cover: plate up to `MAX_DEDICATED_PER_GUEST = 2` dedicated portions (eaters = 1 → full
+value), swap-funded; within it, **prefer a dish the guest eats safely (tier 1) over a modifiable one
+(tier 2)**. May duplicate a shared dish. Stop at 0.85. **Best-effort:** still short within budget/cap →
+keep the table, flag `coverage.bestEffort` + honest recommendation. Never fabricate coverage.
 
 **Badge:** "Covered" once a guest is ≥ their threshold (0.90 / 0.85) / else "Best effort · 0.8x"
-(`GuestResult.coverage.threshold` carries the per-guest bar). Determinism: explicit stable
-tie-breaks (score → shared-before-dedicated → guests-helped → net cost → name); no reliance on
-Map/Set iteration order. Same inputs → same output.
+(`GuestResult.coverage.threshold` carries the per-guest bar). Determinism: explicit stable tie-breaks
+(**tier → score → kind (bump/add/swap/ded) → guests-helped → net cost → name**); no reliance on
+Map/Set iteration order. Same inputs → same output. Coverage metric is unchanged (`safe ∪ modifiable`).
 
 **Coverage lives in `src/lib/coverage-core.ts` (pure, shared).** The scoring formula
 (`eatersForShared`, `coverageNumerator`, `coverageScore`, `coverageMap`, `canEatShared`, the
@@ -297,6 +309,15 @@ A future improvement is extracting the shared copies into a package; out of scop
   (dish-placement: "whole table" / "NOT <name> (allergens)" / "ONLY <name>" + "modified portion"
   notes), toggled beside the kitchen docket (`docView`). Reuses `canEatShared` — no backend/coverage
   change. See §4.
+- **v2 Phase E delivered — optimiser priority ladder (Tom, staff feedback).** Server-only reorder of
+  `optimise()` (§3): cover an under-covered dietary guest with **(0) a dedicated extra of an on-menu
+  dish they eat SAFELY** → **(1) an off-menu SAFE dish** → **(2) a modified dish only as a last
+  resort**; Phase-2 dedicated also prefers safe. Coverage metric / thresholds / client all unchanged.
+  Tried a shared qty **bump** first (Tom's read) but it diluted and maxed the budget, so switched to a
+  **dedicated** portion (isolated helper). Verified (Kisa 58/party 8/2 dietary): off-menu adds **7→2**,
+  MODIFY notes **6→4**, dietary now get on-menu extras (Hummus→G2, Muhammara+Tursu→G1); moderate case
+  1 off-menu / 1 mod. Keeps the standard tier intact (vs the old swap-gutting), so big-party spend runs
+  nearer budget — user confirmed that's the desired "deliver the paid-for menu" behaviour.
 - **Real menu prices live.** Menu tabs are priced for all venues (mr-gos 31/31, ombra 27/27,
   kisa 34/35), so coverage + budget use real prices. Any still-unpriced à-la-carte dish (e.g.
   Kisa's Ezmesi) is excluded from consideration — no placeholder.
