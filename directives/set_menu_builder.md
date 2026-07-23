@@ -213,6 +213,35 @@ Map/Set iteration order. Same inputs → same output.
 > plates NOT on the base menu; shown only when non-empty) — `BuiltMenuResult.tsx`, partitioned on the
 > ORIGINAL `menu` index so steppers stay correct. Printed dockets unchanged (on-screen only).
 
+> **⚠ Phase H (current) — hold EVERY guest to threshold; protect the base set menu; allow bounded
+> over-budget.** Two issues in the Phase-G results drove this: (a) near budget the optimiser could
+> **drop a base-tier main** (e.g. Kisa Short Rib) to fund dietary coverage; (b) it could land **under
+> budget / under-deliver** because **only the *submitted* dietary guests were held to threshold** — the
+> non-dietary majority entered only via `tableSize`/`eaters`, never checked, so once the dietary guests
+> passed 0.85 the optimiser stopped even if the table had shrunk. Fixes:
+> - **Track the whole party.** `buildSetMenu` adds ONE representative **non-dietary** guest
+>   (`buildGuestAccess("__party__", …, [])`) to the optimiser's `coverageGuests` when
+>   `guestCount > submitted` — so the optimiser lifts the non-dietary rest to 0.90 too (fills an
+>   under-full table). It's exact (non-submitted guests are identical; a shared add lifts them equally;
+>   non-dietary ⇒ doesn't change `eaters`). **Never a result row** — assembly + reported scores still use
+>   the real `access` only.
+> - **Protect the whole base set menu.** The three `withReduced` swap sites (Phase-1 swap, Phase-2
+>   swap-funded dedicated, `onMenuSwapBumpActions`) now **skip `source === "tier"` dishes** — the base
+>   tier is never trimmed. Dietary coverage is **added on top** instead. (No course data exists to single
+>   out "mains", so the whole tier is protected — which also satisfies "don't go below the minimums".)
+> - **Bounded over-budget.** `BUDGET_OVERAGE = 0.10`; `budgetCeiling = totalBudget × 1.10`. Every
+>   optimiser add/bump/swap guard uses `budgetCeiling` (Step B party-scaling still fills the base to
+>   `totalBudget`). A guest still short at the ceiling → honest best-effort. `optimise` returns a
+>   **truthful `overBudget`** (`spend > totalBudget`); the client already shows an "over per head" tile.
+> - **Net trade-off:** dietary parties now typically run a little over the target (the full set menu is
+>   kept AND everyone is fed), surfaced to the planner — vs the Phase-G behaviour of trimming the tier /
+>   under-filling. **Verified** — 18-run battery (6 scenarios × 3 venues, party 4–10): **no tier dish
+>   ever dropped**, **spread ≤ 1.10×budget** always, every guest **covered or honest best-effort**,
+>   deterministic, off-menu near-zero. Kisa Case A now keeps Short Rib and covers both guests (0.94/0.91)
+>   at +10%, vs Phase-G dropping Short Rib at $434. Hard guests (7-allergy, vegan, dairy+eggs at an
+>   Italian venue) are honest best-effort at/near the ceiling. Residual: a best-effort guest can still
+>   pile one cheap safe dish (e.g. Rocket salad ×7) — per-dish cap deferred (Tom to flag if needed).
+
 **Coverage lives in `src/lib/coverage-core.ts` (pure, shared).** The scoring formula
 (`eatersForShared`, `coverageNumerator`, `coverageScore`, `coverageMap`, `canEatShared`, the
 `COVERAGE_THRESHOLD = 0.9` / `COVERAGE_THRESHOLD_DIETARY = 0.85` / `DESIGNED_FOR = 4` constants, and
@@ -409,6 +438,19 @@ A future improvement is extracting the shared copies into a package; out of scop
   no-dietary unchanged. ⚠ Priority column is **inert until Tom adds it to each menu tab** (blank ⇒
   unranked, alphabetical fallback) — populate it to make preferred substitutes win when a draft does
   go off-menu.
+- **v2 Phase H delivered — hold EVERY guest to threshold + protect the base set menu + bounded
+  over-budget (Sam/Tom).** Root causes fixed: (1) only *submitted* dietary guests were held to
+  threshold — now `buildSetMenu` adds ONE representative **non-dietary** guest (`"__party__"`) to the
+  optimiser's coverage list so the whole party is lifted to 0.90 (fills an under-full table; never a UI
+  row); (2) the optimiser could drop a base-tier main — now the three `withReduced` swap sites **skip
+  `source === "tier"`**, so the base set menu is never trimmed; dietary coverage is **added on top**
+  within a **10% over-budget ceiling** (`BUDGET_OVERAGE`, `budgetCeiling` in every optimiser guard; Step
+  B still fills the base to target). `optimise` now returns a truthful `overBudget`. See §3 ⚠ Phase H.
+  **Verified — 18-run battery** (6 scenarios × 3 venues, party 4–10): no tier dish ever dropped,
+  spread ≤ 1.10×budget always, every guest covered or honest best-effort, deterministic, off-menu
+  near-zero. Kisa Case A keeps Short Rib + covers both (0.94/0.91) at +10%. Trade-off: dietary parties
+  typically run a little over target (surfaced via the "over per head" tile). Per-dish concentration cap
+  still **deferred** (Tom to flag).
 - **Real menu prices live.** Menu tabs are priced for all venues (mr-gos 31/31, ombra 27/27,
   kisa 34/35), so coverage + budget use real prices. Any still-unpriced à-la-carte dish (e.g.
   Kisa's Ezmesi) is excluded from consideration — no placeholder.
