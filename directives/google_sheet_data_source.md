@@ -79,6 +79,12 @@ Columns: a **name** column, `Ingredients`, `Price`, then one column per allergen
   (desserts, Kisa "lunch plates") never auto-populate but stay manually addable. ⚠ Because blank ⇒
   `NO`, **every set-menu-eligible dish must be explicitly `YES`**, or that app's optimiser has nothing
   to add. Don't delete/rename this column. See `directives/set_menu_builder.md` §3.
+- **`Set menu priority` column (Set Menu Builder only, Phase G).** An optional number per dish (lower =
+  preferred). The **allergen app ignores it.** The Set Menu Builder uses it to rank the **off-menu
+  replacement** dishes it falls back to when the base set menu can't cover a dietary guest — so the
+  venue's preferred substitute is recommended first. Blank/absent ⇒ unranked (sorts last), so it's a
+  no-op until populated. A single column is enough (a guest is only offered dishes they can safely eat,
+  so it acts "within each allergy category" automatically). See `directives/set_menu_builder.md` §3.
 
 ## 4. Substitutions tab schema
 

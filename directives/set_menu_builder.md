@@ -181,6 +181,38 @@ Map/Set iteration order. Same inputs → same output.
 > parties get a busier, more à-la-carte menu (standard dishes trimmed); a genuinely un-feedable guest
 > (e.g. 7 allergies at a meat venue) reads honestly as best-effort with the mods they need.
 
+> **⚠ Phase G (current) — keep the draft ON THE BASE SET MENU (Tom: "first draft ≈ 95% of final").**
+> The team saw off-menu à-la-carte dishes added for dietary guests when the base set menu already had
+> dishes they could eat. Two bugs caused it: (a) a **no-repeats variety guard** (Phase 1 tier-0 + Phase
+> 2 `dedForG`) refused a *second* portion of the same on-menu dish, so coverage fell through to off-menu;
+> (b) **Phase 2 stamped every safe dish `dedTier = 1`**, so an on-menu and an off-menu dish tied. Fixes:
+> - **On-menu dishes now REPEAT freely** (both guards removed). A dietary guest gets as many dedicated
+>   portions of the same on-menu safe dish as needed — repeats self-limit (each survives only if it adds
+>   coverage; the loop stops at threshold). `MAX_DEDICATED_PER_GUEST = 12` is now a generous runaway
+>   backstop only; the real limiters are the coverage-threshold stop + budget guard. `MAX_ITERATIONS = 120`.
+> - **On-menu strictly beats off-menu everywhere.** Phase 2 tags a candidate already on the base menu
+>   `dedTier = 0` (off-menu = 1). Two new Phase-1 tier-0 helpers keep table-fill on the base menu:
+>   `onMenuSharedBumpActions` (bump an on-menu shared dish's qty — mainly re-covers a non-dietary guest
+>   after a swap) and `onMenuSwapBumpActions` (**near-budget only**: reduce a dish the dietary guests
+>   can't eat → serve one MORE portion of an on-menu dish they can, instead of adding off-menu). The
+>   swap-bump is gated to `nearBudget` (no plain on-menu add fits) so it doesn't shrink the table and
+>   bank the budget — while headroom exists we spend it on on-menu dishes, keeping the table full.
+> - **Ranked replacements (`MenuItem.setMenuPriority`, `readSetMenuPriority`).** A single **"Set menu
+>   priority"** column on each venue's MENU tab (lower = preferred; blank ⇒ `UNRANKED_PRIORITY`, sorts
+>   last). It orders the **off-menu fallback only** — `candidateItems`/Phase-2 sorts and a `pickBest`
+>   tiebreak *after* tier (on-menu extras carry the neutral UNRANKED so it never reorders them). A single
+>   column acts "within each allergy category" automatically, because a guest is only offered dishes they
+>   can safely eat. Inert until the sheet has the column.
+> - **`pickBest` sort is now:** tier → **priority** → score → typeRank → helped → netCost → name.
+> - **Result (verified, Kisa/Mr Go's/Ombra):** dietary parties covered with **zero off-menu dishes** —
+>   the draft is the base tier + repeated on-menu portions/extras, near budget, deterministic. Off-menu
+>   is now only reachable when the base menu genuinely has no safe dish for a guest (then priority-ranked).
+>
+> **UI (Phase G):** the "Set Menu draft" card is split into **Base set menu** (shared dishes + dedicated
+> extras OF a base dish, grouped under it as "extra for …") and **Dietary-specific dishes** (dedicated
+> plates NOT on the base menu; shown only when non-empty) — `BuiltMenuResult.tsx`, partitioned on the
+> ORIGINAL `menu` index so steppers stay correct. Printed dockets unchanged (on-screen only).
+
 **Coverage lives in `src/lib/coverage-core.ts` (pure, shared).** The scoring formula
 (`eatersForShared`, `coverageNumerator`, `coverageScore`, `coverageMap`, `canEatShared`, the
 `COVERAGE_THRESHOLD = 0.9` / `COVERAGE_THRESHOLD_DIETARY = 0.85` / `DESIGNED_FOR = 4` constants, and
@@ -363,6 +395,20 @@ A future improvement is extracting the shared copies into a package; out of scop
   every shown score == server score. **Documented the irreducible trade-off** (can't have fewer mods +
   fewer off-menu + tier untouched near budget); Sam chose feed-the-guests + let-the-tier-flex, so big
   near-budget parties get a busier, more à-la-carte menu.
+- **v2 Phase G delivered — keep the draft ON THE BASE SET MENU + ranked replacements + split draft
+  (Tom/staff: "first draft ≈ 95% of final").** Optimiser now exhausts on-menu dishes before off-menu:
+  removed the no-repeats guards (dietary guests get repeated portions of the same on-menu safe dish,
+  `MAX_DEDICATED_PER_GUEST = 12` backstop / `MAX_ITERATIONS = 120`); Phase 2 tags on-menu dishes
+  `dedTier = 0`; two new Phase-1 tier-0 helpers (`onMenuSharedBumpActions`, and near-budget-only
+  `onMenuSwapBumpActions`) keep table-fill on the base menu without shrinking the table. New single
+  **"Set menu priority"** menu-tab column (`MenuItem.setMenuPriority` / `readSetMenuPriority`, blank ⇒
+  `UNRANKED_PRIORITY`) orders the **off-menu fallback only** (candidate sorts + a `pickBest` tiebreak
+  after tier). Draft card split into **Base set menu** / **Dietary-specific dishes** (on-screen only).
+  See §3 ⚠ Phase G block. **Verified** Kisa 58 / Mr Go's 44 / Ombra 49, party 6–8, single + multi +
+  7-allergy dietary: **zero off-menu dishes**, guests covered, near budget, determinism holds,
+  no-dietary unchanged. ⚠ Priority column is **inert until Tom adds it to each menu tab** (blank ⇒
+  unranked, alphabetical fallback) — populate it to make preferred substitutes win when a draft does
+  go off-menu.
 - **Real menu prices live.** Menu tabs are priced for all venues (mr-gos 31/31, ombra 27/27,
   kisa 34/35), so coverage + budget use real prices. Any still-unpriced à-la-carte dish (e.g.
   Kisa's Ezmesi) is excluded from consideration — no placeholder.
