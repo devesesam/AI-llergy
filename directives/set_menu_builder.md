@@ -239,8 +239,22 @@ Map/Set iteration order. Same inputs → same output.
 >   ever dropped**, **spread ≤ 1.10×budget** always, every guest **covered or honest best-effort**,
 >   deterministic, off-menu near-zero. Kisa Case A now keeps Short Rib and covers both guests (0.94/0.91)
 >   at +10%, vs Phase-G dropping Short Rib at $434. Hard guests (7-allergy, vegan, dairy+eggs at an
->   Italian venue) are honest best-effort at/near the ceiling. Residual: a best-effort guest can still
->   pile one cheap safe dish (e.g. Rocket salad ×7) — per-dish cap deferred (Tom to flag if needed).
+>   Italian venue) are honest best-effort at/near the ceiling.
+
+> **⚠ Phase I (current) — per-dish cap on dedicated portions.** The Phase-H battery showed a hard guest
+> could be covered by many portions of ONE cheap dish plated individually for them (Jasmine Rice ×9 for a
+> 7-allergy guest, Rocket salad ×7 for dairy+eggs) — those are per-guest *dedicated repeats*, not shared.
+> Unrealistic ("nobody eats 7 bowls of rice") and cluttered the docket. Fix: **`MAX_SAME_DISH_PER_GUEST
+> = 3`** + helper `dedCountForDish(working, guestId, dishKey)`, gating the two dedicated-creation sites
+> (`onMenuSafeExtraActions` intendedFor filter + the Phase-2 candidate filter). A guest gets **≤3 of any
+> one dish**; **different** dedicated dishes stay unlimited (`MAX_DEDICATED_PER_GUEST = 12` is now a pure
+> runaway backstop); **no per-table cap** (shared dishes uncapped). Optimiser-only — the editor's manual
+> "＋ just for them" is a human override. **Verified** (re-run battery): no dish >3× for any guest;
+> determinism + tier-protection + ceiling intact. **Trade-off (makes coverage HONEST):** where a
+> guest's Phase-H score was propped up by repetition it now drops — Mr Go's 7-allergy 0.74→0.36 (can only
+> eat rice; 3 is the realistic max → staff handle manually), Ombra gluten+garlic **0.98→0.78 (covered →
+> best-effort)** because Ombra genuinely lacks GF variety (menu-data gap). Well-covered venues (Kisa,
+> easy cases) unchanged. If the cap feels too tight on constrained menus, it's a one-constant bump.
 
 **Coverage lives in `src/lib/coverage-core.ts` (pure, shared).** The scoring formula
 (`eatersForShared`, `coverageNumerator`, `coverageScore`, `coverageMap`, `canEatShared`, the
@@ -449,8 +463,15 @@ A future improvement is extracting the shared copies into a package; out of scop
   **Verified — 18-run battery** (6 scenarios × 3 venues, party 4–10): no tier dish ever dropped,
   spread ≤ 1.10×budget always, every guest covered or honest best-effort, deterministic, off-menu
   near-zero. Kisa Case A keeps Short Rib + covers both (0.94/0.91) at +10%. Trade-off: dietary parties
-  typically run a little over target (surfaced via the "over per head" tile). Per-dish concentration cap
-  still **deferred** (Tom to flag).
+  typically run a little over target (surfaced via the "over per head" tile).
+- **v2 Phase I delivered — per-dish cap on dedicated portions (Sam).** `MAX_SAME_DISH_PER_GUEST = 3`:
+  no single dish is plated more than 3× for one guest (was piling e.g. Rice ×9 for a 7-allergy guest);
+  different dedicated dishes stay unlimited, no per-table cap. Helper `dedCountForDish`, gating
+  `onMenuSafeExtraActions` + the Phase-2 candidate filter; optimiser-only (editor manual add uncapped).
+  See §3 ⚠ Phase I. **Verified** (re-run 18-run battery): no dish >3×/guest, determinism + tier
+  protection + 10% ceiling intact. Makes coverage HONEST → a few repetition-propped scores drop
+  (Ombra gluten+garlic 0.98→0.78 crosses to best-effort; Mr Go's 7-allergy 0.74→0.36); Kisa + easy
+  cases unchanged. Cap value is a one-constant bump if too tight on constrained menus.
 - **Real menu prices live.** Menu tabs are priced for all venues (mr-gos 31/31, ombra 27/27,
   kisa 34/35), so coverage + budget use real prices. Any still-unpriced à-la-carte dish (e.g.
   Kisa's Ezmesi) is excluded from consideration — no placeholder.
