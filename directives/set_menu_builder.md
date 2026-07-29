@@ -290,8 +290,24 @@ Map/Set iteration order. Same inputs → same output.
 > - **Verified — 18-run battery** (6 scenarios × 3 venues, party 4–10): **never over budget** (max +0%),
 >   **no set-menu dish ever dropped**, ≤3 same dish per guest, deterministic, off-menu near-zero.
 >   9/36 guests need review — same as Phase H but now **entirely within budget** and far better balanced.
->   ⚠ The priority-column path is **unexercised until Tom adds the columns** (header→allergen mapping was
->   validated separately against the real `allergens.ts` list).
+>
+> **Priority columns — LIVE with placeholder values (as of 2026-07-30).** A **`Set menu priority`** column
+> now exists on all three menu tabs with a handful of ranked dishes; the per-category `<Allergen> Priority`
+> columns are **not** in use yet. ⚠ The current numbers are **Sam's arbitrary test values** — Tom will
+> replace them with chef-approved rankings, so don't treat any specific ordering as intentional. Re-running
+> the battery with them: still all-pass, 10/36 need review (up from 9 — expected, since priority
+> deliberately outranks value-for-money).
+>
+> **Verified behaviour + the data lesson.** Priority demonstrably drives selection *when the ranked dish is
+> a valid candidate* — Kisa picks `Yufka` (prio 3) repeatedly for gluten+dairy guests (it's the GF bread);
+> Mr Go's gives `Tofu Bao` (prio 2) to the vegetarian guest. **BUT a ranked dish is only used if it's SAFE
+> for the under-covered guest**, so a general ranking barely steers dietary substitutions when the ranked
+> dishes aren't allergen-friendly: Mr Go's prio-1/2 dishes are all bao (`GLUTEN FREE=NO`, `DAIRY FREE=NO`)
+> → unusable for gluten/dairy guests, so the optimiser correctly falls back to unranked safe dishes
+> (Popcorn Tofu, Bok Choy, Jasmine Rice). Likewise Kisa's prio-1/2 dishes are already ON the base tier, so
+> they get *bumped* rather than added. **Lesson:** the general column steers table-fill; to steer *dietary*
+> swaps you must either rank dishes that are actually GF/DF/veg-safe, or add the per-category
+> `<Allergen> Priority` columns. (Tom's original instinct about per-category columns was right.)
 
 **Coverage lives in `src/lib/coverage-core.ts` (pure, shared).** The scoring formula
 (`eatersForShared`, `coverageNumerator`, `coverageScore`, `coverageMap`, `canEatShared`, the
@@ -520,8 +536,14 @@ A future improvement is extracting the shared copies into a package; out of scop
   review`** at a uniform **0.85** (`STATUS_THRESHOLD`), raw score kept in the hover tooltip.
   See §3 ⚠ Phase J. **Verified** 18-run battery: never over budget, no dish dropped, ≤3 same dish per
   guest, deterministic; 9/36 need review (same as Phase H but fully in-budget + better balanced).
-  ⚠ **Priority columns are inert until Tom adds them**; ⚠ `unitValue` deliberately ranks AFTER `score`
-  (measured: ahead-of-score was worse on coverage AND balance — see §3).
+  ⚠ `unitValue` deliberately ranks AFTER `score` (measured: ahead-of-score was worse on coverage AND
+  balance — see §3).
+- **`Set menu priority` column now populated on all 3 menu tabs (2026-07-30) — with PLACEHOLDER values.**
+  Sam added arbitrary test numbers to prove the wiring; Tom will replace them with chef-approved rankings.
+  Per-category `<Allergen> Priority` columns deliberately **not** added yet. Verified the mechanism works
+  (Kisa `Yufka` prio-3 chosen for gluten+dairy guests; Mr Go's `Tofu Bao` prio-2 → the vegetarian), and
+  learned the key limitation: a ranked dish is only used if it's **safe for that guest**, so Mr Go's
+  bao-heavy top ranks (GLUTEN/DAIRY = NO) can't steer dietary swaps at all. See §3 ⚠ Phase J.
 - **Real menu prices live.** Menu tabs are priced for all venues (mr-gos 31/31, ombra 27/27,
   kisa 34/35), so coverage + budget use real prices. Any still-unpriced à-la-carte dish (e.g.
   Kisa's Ezmesi) is excluded from consideration — no placeholder.
