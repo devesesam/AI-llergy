@@ -306,8 +306,9 @@ const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?forma
 **File**: `ai-llergy-webapp/.env.local`
 
 ```env
-# Required
-GOOGLE_SHEET_ID=1HNWCErJzCBRfy-oPOqPgg1UYYbhOkD5tuVrLWevryeU
+# Required — the LIVE shared spreadsheet (all venues). Do not use the old sample id
+# 1HNWCErJzCBRfy-... which appears in older docs.
+GOOGLE_SHEET_ID=1xxS6NRa16fptx3c4CJ5-V6mp-yDIHDGb7RnLx03isaw
 
 # Optional (enables AI interpretation)
 ANTHROPIC_API_KEY=sk-ant-...

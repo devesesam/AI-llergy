@@ -41,9 +41,11 @@ Each venue gets a `<Venue> Set Menu` tab, stored **normalized** (one row per tie
 
 - **Tier / Tier Per Head**: tier label + headline target spend per head (e.g. `38`).
 - **Dish**: set-menu display name (verbatim from the venue).
-- **Dish Key** *(safety-critical join)*: `normalizeDishName(menu dish name)` =
-  `trim().toLowerCase()` of the matching MENU-tab dish. **Blank = allergen-unknown** (the dish
-  is shown in the spread but NEVER marked safe for any allergy).
+- **Dish Key** *(safety-critical join)*: must equal the matching MENU-tab dish name, compared via
+  **`looseKey()`** (see the join section below — lowercase, accents stripped, dash variants folded,
+  whitespace collapsed). Case/dash/accent differences are tolerated; **commas, brackets, `&`, stray
+  punctuation and extra words are NOT** — e.g. `Kung Pao Cauliflower` ≠ `Kung Pao Cauliflower V2.0`.
+  **Blank = allergen-unknown** (the dish is shown in the spread but NEVER marked safe for any allergy).
 - **Qty**: portions in the base (4-person) spread (decodes `x2`/`+1` markers).
 - **Price**: price for the listed Qty (as the venue listed it). Unit price = Price ÷ Qty.
 
@@ -68,14 +70,18 @@ typed with plain ASCII hyphens and still match menu names that use en-dashes (an
 copy-paste encoding damage — see §8). A blank Dish Key = allergen-unknown (never marked safe).
 
 ### Dish-name reconciliation (drive blanks to zero)
-Still UNRESOLVED (need chef confirmation), left blank = allergen-unknown:
-- **Mr Go's**: `MUSHROOM 'XO' FRIED RICE` (is it "Vege Fried Rice"?), `CHILLI & COCONUT CHICKEN
-  SALAD` (is it "Chicken Salad"?).
-- **Ombra**: `Slow cook lamb…` (no lamb dish on the live Ombra menu tab).
+**Live state as of 2026-07-30 — `totalUnresolved: 1`** (verified via `GET /api/health`):
+- **Mr Go's** — one Set Menu row with `Dish` = `KUNG PAO CAULIFLOWER`, `Dish Key` =
+  `kung pao cauliflower`, but the MENU tab item is now named **`Kung Pao Cauliflower V2.0`** → no
+  match → allergen-unknown. Fix either side (drop " V2.0" from the menu tab, or set the Dish Key to
+  the full new name). A *second* row for the same dish was already fixed, so only one remains.
+  ⚠ **Recurring failure mode:** renaming a dish on the MENU tab silently breaks every Set Menu row
+  that references it. Don't put version numbers in the menu-tab name.
 
-RESOLVED: Kisa `URFA X2` → "Lamb Urfa Kebab" (confirmed by owner). `PITA/YUFKA` → "Pita" as a
-representative (confirm if it matters for an allergy). All other dishes resolved by the
-ingest's curated alias map.
+RESOLVED: Ombra `Gnocchi…` (key had ` - ` instead of a comma plus a `(with pancetta +8)` suffix —
+fixed 2026-07-30). Mr Go's `MUSHROOM 'XO' FRIED RICE` and `CHILLI & COCONUT CHICKEN SALAD`, and
+Ombra `Slow cook lamb`, all now resolve. Kisa `URFA X2` → "Lamb Urfa Kebab" (confirmed by owner);
+`PITA/YUFKA` → "Pita" as a representative. Kisa is fully clean (0 unresolved).
 
 To resolve a blank: confirm the matching menu dish with the chef, then set `Dish Key` =
 `looseKey(that menu name)` — i.e. lowercase, plain hyphens, no accents (or add the dish to the
@@ -158,7 +164,12 @@ keep the table, flag `coverage.bestEffort` + honest recommendation. Never fabric
 (**tier → score → kind (bump/add/swap/ded) → guests-helped → net cost → name**); no reliance on
 Map/Set iteration order. Same inputs → same output.
 
-> **⚠ Phase F (current) supersedes the "prefer safe" wording above — read this.** The optimiser now
+> ### Optimiser rule stack — read Phase F → J in order
+> Each block below layers on the previous one; where they conflict, the **later** phase wins. The
+> **current** behaviour = F + G + H + I + **J's overrides** (J reverses Phase H's over-budget allowance
+> and Phase H's blanket tier protection). Phase J is the authority on budget and dish-choice rules.
+
+> **⚠ Phase F (still in force) supersedes the "prefer safe" wording above — read this.** The optimiser now
 > **drives off SAFE coverage** (`toCoverageGuest` uses `safeKeys`, not `canEat`): a dietary guest "can
 > eat" a dish only if it's *safe* for them, so a modifiable dish never raises coverage and is never
 > added for coverage. The optimiser feeds each dietary guest **real safe food** (dedicated safe plates,
@@ -181,7 +192,7 @@ Map/Set iteration order. Same inputs → same output.
 > parties get a busier, more à-la-carte menu (standard dishes trimmed); a genuinely un-feedable guest
 > (e.g. 7 allergies at a meat venue) reads honestly as best-effort with the mods they need.
 
-> **⚠ Phase G (current) — keep the draft ON THE BASE SET MENU (Tom: "first draft ≈ 95% of final").**
+> **⚠ Phase G (still in force) — keep the draft ON THE BASE SET MENU (Tom: "first draft ≈ 95% of final").**
 > The team saw off-menu à-la-carte dishes added for dietary guests when the base set menu already had
 > dishes they could eat. Two bugs caused it: (a) a **no-repeats variety guard** (Phase 1 tier-0 + Phase
 > 2 `dedForG`) refused a *second* portion of the same on-menu dish, so coverage fell through to off-menu;
@@ -213,7 +224,8 @@ Map/Set iteration order. Same inputs → same output.
 > plates NOT on the base menu; shown only when non-empty) — `BuiltMenuResult.tsx`, partitioned on the
 > ORIGINAL `menu` index so steppers stay correct. Printed dockets unchanged (on-screen only).
 
-> **⚠ Phase H (current) — hold EVERY guest to threshold; protect the base set menu; allow bounded
+> **⚠ Phase H (PARTLY REVERSED by Phase J) — hold EVERY guest to threshold (still in force); protect
+> the base set menu + allow bounded
 > over-budget.** Two issues in the Phase-G results drove this: (a) near budget the optimiser could
 > **drop a base-tier main** (e.g. Kisa Short Rib) to fund dietary coverage; (b) it could land **under
 > budget / under-deliver** because **only the *submitted* dietary guests were held to threshold** — the
@@ -241,7 +253,7 @@ Map/Set iteration order. Same inputs → same output.
 >   at +10%, vs Phase-G dropping Short Rib at $434. Hard guests (7-allergy, vegan, dairy+eggs at an
 >   Italian venue) are honest best-effort at/near the ceiling.
 
-> **⚠ Phase I (current) — per-dish cap on dedicated portions.** The Phase-H battery showed a hard guest
+> **⚠ Phase I (still in force) — per-dish cap on dedicated portions.** The Phase-H battery showed a hard guest
 > could be covered by many portions of ONE cheap dish plated individually for them (Jasmine Rice ×9 for a
 > 7-allergy guest, Rocket salad ×7 for dairy+eggs) — those are per-guest *dedicated repeats*, not shared.
 > Unrealistic ("nobody eats 7 bowls of rice") and cluttered the docket. Fix: **`MAX_SAME_DISH_PER_GUEST
@@ -256,7 +268,7 @@ Map/Set iteration order. Same inputs → same output.
 > best-effort)** because Ombra genuinely lacks GF variety (menu-data gap). Well-covered venues (Kisa,
 > easy cases) unchanged. If the cap feels too tight on constrained menus, it's a one-constant bump.
 
-> **⚠ Phase J (current) — HARD budget cap, 1× set-menu floor, per-category priorities, status labels.**
+> **⚠ Phase J (CURRENT — authority on budget + dish choice) — HARD budget cap, 1× set-menu floor, per-category priorities, status labels.**
 > Tom's round-4 feedback. Four changes:
 > - **The budget is now a HARD cap.** `BUDGET_OVERAGE` is **deleted** — the tool must never exceed the
 >   customer's stated budget (`budgetCeiling = totalBudget`; Step B unchanged). `optimise` still returns a
@@ -547,10 +559,12 @@ A future improvement is extracting the shared copies into a package; out of scop
 - **Real menu prices live.** Menu tabs are priced for all venues (mr-gos 31/31, ombra 27/27,
   kisa 34/35), so coverage + budget use real prices. Any still-unpriced à-la-carte dish (e.g.
   Kisa's Ezmesi) is excluded from consideration — no placeholder.
-- **`Slow cook lamb` (Ombra) is an intentional future dish** — not on the main menu yet, so its
-  Dish Key stays blank and it shows as "no allergen data / confirm with venue" on the set menu.
-  Leave it until Tom adds it to the menu tab. All other dish keys resolve.
-- **Open**: confirm Netlify `GOOGLE_SHEET_ID` = the live sheet + `setmenu` DNS.
+- **Deployment CONFIRMED live (2026-07-30)** — `set.menukey.co.nz` serves the current build and reads
+  the live sheet (verified end-to-end: `POST /api/build` returns real per-venue data, `GET /api/health`
+  returns all three venues from `source: "sheet"`). Netlify `GOOGLE_SHEET_ID` + DNS are correct; the old
+  `setmenu.ai-lergy.co.nz` host still resolves (301). No open deployment items.
+- **Only remaining data gap: 1 unresolved Dish Key** (Mr Go's `KUNG PAO CAULIFLOWER` — see §2). Everything
+  else resolves, including Ombra's `Slow cook lamb` and `Gnocchi`.
 - **Known refinement (minor):** for a heavily-restricted guest whose only safe dishes are already
   on the shared table, the optimiser can add both a shared copy AND a dedicated portion of the same
   dish (e.g. two coconut sagos). Correct + within budget, just slightly redundant; the Phase B
