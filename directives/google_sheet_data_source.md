@@ -100,11 +100,19 @@ Columns: a **name** column, `Ingredients`, `Price`, then one column per allergen
   `NO`, **every set-menu-eligible dish must be explicitly `YES`**, or that app's optimiser has nothing
   to add. Don't delete/rename this column. See `directives/set_menu_builder.md` §3.
 - **`Set menu priority` column (Set Menu Builder only, Phase G).** An optional number per dish (lower =
-  preferred). The **allergen app ignores it.** The Set Menu Builder uses it to rank the **off-menu
-  replacement** dishes it falls back to when the base set menu can't cover a dietary guest — so the
-  venue's preferred substitute is recommended first. Blank/absent ⇒ unranked (sorts last), so it's a
-  no-op until populated. A single column is enough (a guest is only offered dishes they can safely eat,
-  so it acts "within each allergy category" automatically). See `directives/set_menu_builder.md` §3.
+  preferred). The **allergen app ignores it.** This is the **general** ranking — used for whole-table
+  fill and as the fallback for any dietary category without its own column. Blank/absent ⇒ unranked
+  (sorts last), so it's a no-op until populated.
+- **`<Allergen> Priority` columns (Set Menu Builder only, Phase J).** Optional **per-dietary-category**
+  rankings, e.g. `Gluten Priority`, `Dairy Priority`, `Vegan Priority`, `Egg Priority` (lower = the
+  venue's preferred choice for guests with that requirement). Header matching is tolerant — case,
+  spacing and a `FREE` in the name are ignored, so `GLUTEN FREE Priority` == `Gluten Priority`; the
+  name must match an allergen registered in `allergens.ts` (label, id, or column name) or the column is
+  ignored. The **allergen app ignores these.** The Set Menu Builder uses them to decide **which suitable
+  dish to increase** for a restricted guest (Tom: prefer calamari toast / cream cheese wontons over more
+  salad), and which off-menu substitute to fall back to. A guest with several requirements gets their
+  best-ranked option. Blank ⇒ falls back to `Set menu priority`, then unranked. Don't delete/rename
+  these columns. See `directives/set_menu_builder.md` §3 ⚠ Phase J.
 
 ## 4. Substitutions tab schema
 

@@ -256,6 +256,43 @@ Map/Set iteration order. Same inputs → same output.
 > best-effort)** because Ombra genuinely lacks GF variety (menu-data gap). Well-covered venues (Kisa,
 > easy cases) unchanged. If the cap feels too tight on constrained menus, it's a one-constant bump.
 
+> **⚠ Phase J (current) — HARD budget cap, 1× set-menu floor, per-category priorities, status labels.**
+> Tom's round-4 feedback. Four changes:
+> - **The budget is now a HARD cap.** `BUDGET_OVERAGE` is **deleted** — the tool must never exceed the
+>   customer's stated budget (`budgetCeiling = totalBudget`; Step B unchanged). `optimise` still returns a
+>   truthful `overBudget` (now ~always false unless the base tier itself exceeds budget for a small party).
+> - **Dietary coverage is funded by REALLOCATION, floored at 1×.** Phase H's blanket tier protection is
+>   replaced by **`MIN_TIER_DISH_QTY = 1`**: a base set-menu dish MAY be reduced to pay for dietary
+>   dishes but **never below 1 portion**, so no set-menu dish ever drops off the draft (Tom's "don't drop
+>   the short rib"). Applied at all three `withReduced` sites.
+> - **Per-dietary-category priorities, applied to ON-MENU increases.** `MenuItem.priorityByAllergen`
+>   (`readPriorityByAllergen`) reads **"<Allergen> Priority"** columns (tolerant: "Gluten Priority",
+>   "GLUTEN FREE Priority", "Egg Priority" → `eggs`, …); the old single **"Set menu priority"** is the
+>   general fallback. `priorityFor(item, guests)` = best (lowest) rank across those guests' allergens,
+>   else general, else unranked. **Now applied to on-menu extras/bumps too** (previously they were forced
+>   neutral, which is exactly why cheap salads kept winning), plus off-menu adds/swaps and Phase-2
+>   dedicated. `pickBest`: **tier → priority → score → unitValue(desc) → typeRank → helped → cost → name**.
+> - **Per-dish portion cap on optimiser bumps (the real "balanced menu" fix).** The optimiser previously
+>   ignored the base-scaling cap, so bumping one widely-safe dish ballooned it (measured: a single dish at
+>   **49–54% of the whole budget**, e.g. Fried Rice ×12 / Brussels sprouts ×12, everything else at ×1).
+>   `maxQtyByKey` (base portions × `ceil(G/4)`, the SAME cap Step B uses) is now passed into
+>   `onMenuSharedBumpActions` / `onMenuSwapBumpActions`. Worst single dish dropped to **28%** (which is
+>   the base menu itself, not an optimiser artifact).
+> - **Status labels replace decimals** (`BuiltMenuResult.tsx`): **`✓ Covered`** at ≥ **0.85**, **`● Needs
+>   review`** below (`.smb-fair--review`, orange). `STATUS_THRESHOLD = 0.85` applied **uniformly** (the
+>   optimiser still internally aims for 0.90 on non-dietary); the raw score stays in the hover `title`.
+>   `liveCoverage.met` + the "Needs review" list use the same boundary so nothing can disagree.
+> - ⚠ **Measured deviation from the brief:** Sam asked for "prefer more substantial dishes" as the interim
+>   tiebreak *ahead of* value-for-money. Measurement showed that ordering was worse on BOTH axes —
+>   10/36 guests needing review (vs 8–9) **and** a worse worst-case pile (54% vs 49%). Balance is fixed by
+>   the portion cap, not by that ordering, so `unitValue` sits **after** `score` as a genuine tiebreak.
+>   Flagged to Sam; one-line swap to restore if wanted.
+> - **Verified — 18-run battery** (6 scenarios × 3 venues, party 4–10): **never over budget** (max +0%),
+>   **no set-menu dish ever dropped**, ≤3 same dish per guest, deterministic, off-menu near-zero.
+>   9/36 guests need review — same as Phase H but now **entirely within budget** and far better balanced.
+>   ⚠ The priority-column path is **unexercised until Tom adds the columns** (header→allergen mapping was
+>   validated separately against the real `allergens.ts` list).
+
 **Coverage lives in `src/lib/coverage-core.ts` (pure, shared).** The scoring formula
 (`eatersForShared`, `coverageNumerator`, `coverageScore`, `coverageMap`, `canEatShared`, the
 `COVERAGE_THRESHOLD = 0.9` / `COVERAGE_THRESHOLD_DIETARY = 0.85` / `DESIGNED_FOR = 4` constants, and
@@ -472,6 +509,19 @@ A future improvement is extracting the shared copies into a package; out of scop
   protection + 10% ceiling intact. Makes coverage HONEST → a few repetition-propped scores drop
   (Ombra gluten+garlic 0.98→0.78 crosses to best-effort; Mr Go's 7-allergy 0.74→0.36); Kisa + easy
   cases unchanged. Cap value is a one-constant bump if too tight on constrained menus.
+- **v2 Phase J delivered — hard budget cap + 1× floor + per-category priorities + status labels (Tom
+  round 4).** (1) `BUDGET_OVERAGE` **removed** — never exceed the customer's budget. (2) Dietary dishes
+  are funded by trimming base dishes down to **`MIN_TIER_DISH_QTY = 1`** (never dropped). (3) New
+  **"<Allergen> Priority"** menu-tab columns (`priorityByAllergen` / `readPriorityByAllergen`,
+  general "Set menu priority" as fallback) now steer **which on-menu dish is increased**, not just the
+  off-menu fallback. (4) The optimiser now respects the **base-scaling per-dish portion cap**
+  (`maxQtyByKey` = base × `ceil(G/4)`) — this is what actually fixed Tom's "too much salad" complaint
+  (worst single dish 49–54% → **28%** of budget). (5) Coverage decimals → **`✓ Covered` / `● Needs
+  review`** at a uniform **0.85** (`STATUS_THRESHOLD`), raw score kept in the hover tooltip.
+  See §3 ⚠ Phase J. **Verified** 18-run battery: never over budget, no dish dropped, ≤3 same dish per
+  guest, deterministic; 9/36 need review (same as Phase H but fully in-budget + better balanced).
+  ⚠ **Priority columns are inert until Tom adds them**; ⚠ `unitValue` deliberately ranks AFTER `score`
+  (measured: ahead-of-score was worse on coverage AND balance — see §3).
 - **Real menu prices live.** Menu tabs are priced for all venues (mr-gos 31/31, ombra 27/27,
   kisa 34/35), so coverage + budget use real prices. Any still-unpriced à-la-carte dish (e.g.
   Kisa's Ezmesi) is excluded from consideration — no placeholder.
