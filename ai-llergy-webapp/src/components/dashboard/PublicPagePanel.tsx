@@ -15,7 +15,14 @@ export function PublicPagePanel({ slug }: { slug: string }) {
     setOrigin(window.location.origin);
   }, []);
 
-  const url = origin ? `${origin}/v/${slug}` : `/v/${slug}`;
+  // Canonical public menu URL — the Google-Sheet-backed `/[venue]` route, NOT
+  // the retired Supabase `/v/[slug]` one. This string gets printed into QR
+  // codes, so it must be the customer-facing host: the dashboard is served from
+  // app.<domain> while the public menu lives on the bare <domain> (same Netlify
+  // site), so drop the `app.` label. Left domain-agnostic on purpose — a no-op
+  // on localhost and preview deploys, which have no `app.` prefix.
+  const publicOrigin = origin.replace("://app.", "://");
+  const url = publicOrigin ? `${publicOrigin}/${slug}` : `/${slug}`;
 
   const copy = async () => {
     await navigator.clipboard.writeText(url);
@@ -28,7 +35,7 @@ export function PublicPagePanel({ slug }: { slug: string }) {
     const canvas = qrWrapRef.current?.querySelector("canvas");
     if (!canvas) return;
     const link = document.createElement("a");
-    link.download = `ai-llergy-${slug}-qr.png`;
+    link.download = `menukey-${slug}-qr.png`;
     link.href = canvas.toDataURL("image/png");
     link.click();
     toast.success("QR code downloaded");
@@ -80,7 +87,7 @@ export function PublicPagePanel({ slug }: { slug: string }) {
               <Button
                 variant="secondary"
                 size="sm"
-                href={`/v/${slug}`}
+                href={`/${slug}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 icon={<ExternalLink className="w-4 h-4" />}
@@ -128,7 +135,7 @@ export function PublicPagePanel({ slug }: { slug: string }) {
           </div>
           <div className="w-[280px] h-[560px] max-w-full rounded-[2rem] border-8 border-gray-900 overflow-hidden bg-white shadow-lg">
             <iframe
-              src={`/v/${slug}`}
+              src={`/${slug}`}
               title="Public menu preview"
               className="w-full h-full"
             />

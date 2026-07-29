@@ -32,7 +32,7 @@ export default async function VenueWorkspaceLayout({
           {venue.name}
         </h1>
         {venue.slug && (
-          <p className="text-sm text-text-muted mt-0.5">/v/{venue.slug}</p>
+          <p className="text-sm text-text-muted mt-0.5">/{venue.slug}</p>
         )}
       </div>
 

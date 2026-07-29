@@ -3,10 +3,36 @@
 **Goal**: Develop and maintain a mobile-first, high-end web application that allows users to filter menu items based on allergies. Like the "Mosaic" parent brand, the design must be premium, using the specific "Food Magazine Editorial" aesthetic.
 
 > **This workspace now hosts TWO apps.** This directive covers the allergen-filter app
-> (`ai-llergy-webapp/` → ai-lergy.co.nz). The **Set Menu Builder** (`set-menu-builder/` →
-> setmenu.ai-lergy.co.nz) is a separate product that reuses the same Google Sheet + allergen
+> (`ai-llergy-webapp/` → menukey.co.nz). The **Set Menu Builder** (`set-menu-builder/` →
+> set.menukey.co.nz) is a separate product that reuses the same Google Sheet + allergen
 > logic — see **`directives/set_menu_builder.md`**. Deployment of both (THREE git repos):
 > `directives/github_deployment.md`.
+
+## 0. Brand & Domains (current)
+
+**The product is called "Menukey"** (one word, capital M) as of **2026-07-30**, replacing
+"AI-lergy"/"AI-llergy". Domain owned by Tom (Mosaic); nameservers managed in Netlify.
+
+| Hostname | Serves | Repo |
+|---|---|---|
+| `menukey.co.nz` | public allergen picker — the QR destination | `ai-llergy-webapp` |
+| `app.menukey.co.nz` | venue dashboard (built, currently unused) | `ai-llergy-webapp` |
+| `set.menukey.co.nz` | Set Menu Builder | `set-menu-builder` |
+
+Predecessors `ai-lergy.co.nz` / `app.ai-lergy.co.nz` / `setmenu.ai-lergy.co.nz` should 301 to the
+above. No QR codes were ever printed on the old domain.
+
+- **Customer-facing strings say "Menukey".** `layout.tsx`, `page.tsx`, `VenueApp.tsx` (×2),
+  `DisclaimerModal.tsx`, `[venue]/page.tsx`, `v/[slug]/page.tsx`, `VenueMenuClient.tsx`
+  ("Powered by Menukey"), `AccountTopBar.tsx`, plus the QR-PNG and CSV export filenames
+  (`menukey-<slug>-qr.png`, `menukey-<venue>.csv`).
+- **Internal identifiers deliberately still say `ai-llergy`** — repo names, folder names,
+  `package.json` name. Renaming those would break Netlify's build config and both git remotes for
+  no user-visible gain. Comments in `set-menu-builder/src/lib/*` cite the literal path
+  `ai-llergy-webapp/src/lib/...` and remain correct.
+- **No domain string is hardcoded anywhere in app code** — all URLs derive from
+  `window.location.origin` / `new URL(request.url).origin`. A future domain change needs only DNS,
+  Netlify custom-domain entries, and the Supabase Auth URL config.
 
 ## 1. Resources & Standards
 
@@ -30,7 +56,7 @@
     *   **Substitutions**: per-venue tab; gid set as `substitutionsGid` in `venues.ts` (the old `GOOGLE_SUBSTITUTIONS_GID` env var is retired). Powers the "Can be modified" feature. See `directives/substitutions.md`.
     *   **Full schema, tolerance rules, and failure modes**: `directives/google_sheet_data_source.md` (READ THIS before editing the sheet or menu-loading code).
 *   **AI API**: Anthropic Claude (for custom allergy text interpretation)
-*   **Deployment**: **Netlify**, live at **https://ai-lergy.co.nz** (single "l"). Env vars set in Netlify → Site configuration → Environment variables. Code changes require a redeploy; sheet edits appear within the 10-min cache.
+*   **Deployment**: **Netlify**, live at **https://menukey.co.nz** (see § 0 for the full domain map). Env vars set in Netlify → Site configuration → Environment variables. Code changes require a redeploy; sheet edits appear within the 10-min cache.
 
 ## 2. Architecture & Tech Stack
 
@@ -61,6 +87,43 @@
     *   `src/lib/`: Core logic modules (see Backend Directive)
         *   `ai-filter.ts`: AI-powered menu filtering for custom tags (v2.6)
 *   **Run**: `npm run dev` (uses Turbopack)
+
+### Public venue route: `/[venue]` is canonical — Supabase is NOT used
+
+**Decided 2026-07-30: Supabase is not used for anything.** The public allergen experience runs
+entirely off the Google Sheet. Do not add Supabase reads to any public code path.
+
+| Route | Data source | Rendered by | Status |
+|---|---|---|---|
+| `/[venue]` e.g. `/kisa` | static `VENUES` registry + **Google Sheet** CSV | `VenueApp.tsx` | **CANONICAL.** Landing page links here; statically prerendered per venue. |
+| `/v/[slug]` | — | — | **RETIRED.** 308 `permanentRedirect` → `/{slug}`. |
+
+**History** (so nobody "restores" the old route): `/v/[slug]` + the dashboard were the original
+Supabase design — the dashboard let a venue edit `menu_items` rows and `/v/[slug]` rendered them. A
+week later `/[venue]` was added (2026-06-23, `994736d`) to ship Kisa / Mr Go's / Ombra off the Sheet
+without waiting on the DB. Both routes then coexisted, serving different data, until this was
+resolved.
+
+**What was changed to resolve it:**
+
+1. `src/app/v/[slug]/page.tsx` — now a `permanentRedirect` to `/{slug}`. No Supabase call.
+2. `src/middleware.ts` — matcher narrowed from *every path* to
+   `['/dashboard/:path*', '/login', '/signup', '/auth/:path*']`. **This was a live performance bug**:
+   the catch-all matcher meant every public QR scan blocked on `supabase.auth.getUser()` before the
+   menu rendered — a network round-trip to a DB the page never reads, and a hang if the project is
+   paused. Never widen this matcher back to `/(.*)`.
+3. The five dashboard strings advertising `/v/{slug}` now say `/{slug}`: `dashboard/page.tsx`,
+   `dashboard/venues/new/page.tsx`, `dashboard/venues/[venueId]/layout.tsx`, `VenueSettings.tsx`,
+   and `PublicPagePanel.tsx` (the QR generator).
+4. `PublicPagePanel.tsx` also strips the `app.` label from `window.location.origin`, because the
+   dashboard is served from `app.menukey.co.nz` but a printed QR must carry the public host
+   `menukey.co.nz`. Done by string transform, not a hardcoded domain, so localhost and preview
+   deploys still work.
+
+**Dead code left in place** (deliberately — same policy as the other dead-code notes below):
+`src/app/v/[slug]/VenueMenuClient.tsx` is no longer imported by anything. The dashboard itself
+(`/dashboard/**`, `src/lib/supabase/**`, `/api/venues/**`) still exists and still targets Supabase;
+it is unused but reachable at `app.menukey.co.nz`. Its menu editor writes rows that nothing renders.
 
 ### Legacy App (Static HTML) - DEPRECATED
 *   **Type**: Static Web App (HTML/CSS/JS)
@@ -123,8 +186,9 @@ clean URL, instead of being hard-wired to a single venue at `/`.
 *   **Results "Your Selections" flattened** (`SelectionSummary.tsx`) — single neutral pill list, no
     severity grouping.
 *   **Disclaimer** (`DisclaimerModal.tsx`): new wording + "I Agree" → "I Understand".
-*   **Brand consistency**: all user-facing text unified to **AI-lergy** (single "l"), matching
-    ai-lergy.co.nz. Internal repo/package/dir names left as `ai-llergy`.
+*   **Brand consistency**: all user-facing text unified to **AI-lergy** (single "l"), matching the
+    then-live ai-lergy.co.nz. Internal repo/package/dir names left as `ai-llergy`.
+    **Superseded 2026-07-30 → Menukey** (see § Brand below).
 *   **Dead code** left for a later pass: `.severity-slider*` / `.selection-pill--*` CSS, `SeverityType`
     on selections, and the now-misnamed `SeverityModal`.
 *   **Related**: `allergen_management.md` §6, `frontend_results_display.md` §10,
@@ -439,7 +503,7 @@ substitutions feature, plus the bug fixes that came from the sheet being activel
         *   `src/components/dashboard/MenuItemForm.tsx` - Reusable form
 
 *   **Feature 4: Public Venue Pages**
-    *   URL pattern: `/v/[slug]` (e.g., `ai-llergy.co.nz/v/the-blue-door`)
+    *   URL pattern: `/v/[slug]` (e.g., `menukey.co.nz/v/the-blue-door`)
     *   Server component fetches venue + active menu items
     *   Client component handles allergen filtering
     *   Reuses existing allergen selection and filtering logic

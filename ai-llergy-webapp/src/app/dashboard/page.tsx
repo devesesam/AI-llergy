@@ -130,7 +130,7 @@ export default async function DashboardPage() {
                       {membership.venues?.name || 'Unknown venue'}
                     </h3>
                     <p className="text-sm text-text-muted mb-4">
-                      /v/{membership.venues?.slug}
+                      /{membership.venues?.slug}
                     </p>
                     <div className="flex items-center justify-between pt-4 border-t border-border/60">
                       <span className="text-sm text-text-muted">

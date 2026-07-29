@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AI-lergy | Mosaic",
+  title: "Menukey | Mosaic",
   description: "Select your allergens to view a customized menu",
 };
 

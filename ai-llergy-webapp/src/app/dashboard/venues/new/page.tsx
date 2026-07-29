@@ -94,7 +94,7 @@ export default function NewVenuePage() {
             <Field
               label="URL slug"
               required
-              help={`Your public menu will be at /v/${slug || 'your-venue'}`}
+              help={`Your public menu will be at /${slug || 'your-venue'}`}
             >
               <Input
                 placeholder="e.g. the-blue-door"

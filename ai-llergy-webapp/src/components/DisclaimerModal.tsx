@@ -14,7 +14,7 @@ export default function DisclaimerModal({
       <div className="modal-content">
         <h1>Disclaimer</h1>
         <p>
-          AI-lergy is designed to help you make a more informed dining choice,
+          Menukey is designed to help you make a more informed dining choice,
           but it should be used as a guide only.
         </p>
         <p>

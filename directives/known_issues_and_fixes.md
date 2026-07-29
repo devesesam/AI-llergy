@@ -1413,9 +1413,11 @@ results "Your Selections" list. Also refreshed the disclaimer copy and unified t
    preference.)
 2. **Flat results summary** (`SelectionSummary.tsx`): one neutral pill list instead of severity groups.
 3. **Disclaimer** (`DisclaimerModal.tsx`): new wording; button "I Agree" → "I Understand".
-4. **Brand**: all user-facing strings unified to **AI-lergy** (single "l"), matching the live domain
-   ai-lergy.co.nz. (`page.tsx`, `layout.tsx`, `v/[slug]/page.tsx`, `VenueMenuClient.tsx`,
+4. **Brand**: all user-facing strings unified to **AI-lergy** (single "l"), matching the then-live
+   domain ai-lergy.co.nz. (`page.tsx`, `layout.tsx`, `v/[slug]/page.tsx`, `VenueMenuClient.tsx`,
    `AccountTopBar.tsx`.) Internal identifiers (repo/package/dir names) intentionally left as `ai-llergy`.
+   **Superseded 2026-07-30** — the brand is now **Menukey** (one word) on **menukey.co.nz**; see
+   `project_ai_llergy.md` § Brand. Internal identifiers still say `ai-llergy`.
 
 **Why severity was safe to remove**: It was collected but never used on the Google-Sheet path
 (filtering is column-based, not confidence-based). The confidence-threshold logic that *would* consume

@@ -91,7 +91,7 @@ export function MenuWorkspace({ venueId, venueSlug, menuItems }: MenuWorkspacePr
       toast.error("Nothing to export yet");
       return;
     }
-    downloadCSV(`ai-llergy-${venueSlug || "menu"}.csv`, buildMenuCSV(items));
+    downloadCSV(`menukey-${venueSlug || "menu"}.csv`, buildMenuCSV(items));
     toast.success("Menu exported");
   };
 

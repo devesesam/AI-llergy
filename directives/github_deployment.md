@@ -11,8 +11,8 @@
 
 | Repo | Location | Branch | Contains | Role |
 |---|---|---|---|---|
-| **`devesesam/ai-llergy-webapp`** | nested `ai-llergy-webapp/.git` | **`master`** | The allergen-filter Next.js app (`src/`, etc.) | **Netlify deploys this** → ai-lergy.co.nz |
-| **`devesesam/set-menu-builder`** | nested `set-menu-builder/.git` | **`master`** | The Set Menu Builder Next.js app (separate product, shares the same Google Sheet) | **Netlify deploys this** → setmenu.ai-lergy.co.nz |
+| **`devesesam/ai-llergy-webapp`** | nested `ai-llergy-webapp/.git` | **`master`** | The allergen-filter Next.js app (`src/`, etc.) | **Netlify deploys this** → menukey.co.nz |
+| **`devesesam/set-menu-builder`** | nested `set-menu-builder/.git` | **`master`** | The Set Menu Builder Next.js app (separate product, shares the same Google Sheet) | **Netlify deploys this** → set.menukey.co.nz |
 | **`devesesam/AI-llergy`** | workspace root `.git` | **`workspace`** | `directives/`, `execution/` scripts, CSVs/PDFs/data (`resources/`), **and a tracked copy of the `ai-llergy-webapp/` files**. **`set-menu-builder/` is NOT tracked here** — it lives only in its own repo, shown as `?? set-menu-builder/` (untracked); do **not** `git add` it into the outer repo (nested-repo/submodule mess). | Full-project backup; **NOT deployed** |
 
 - **Deploy an allergen-app change** → commit + push the **`ai-llergy-webapp`** nested repo's `master`.

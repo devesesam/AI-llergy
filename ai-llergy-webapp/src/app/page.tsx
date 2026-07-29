@@ -3,7 +3,7 @@ import Link from "next/link";
 import { VENUES } from "@/lib/venues";
 
 export const metadata = {
-  title: "AI-lergy | Mosaic",
+  title: "Menukey | Mosaic",
   description: "Choose a venue to filter its menu by your dietary requirements and allergies",
 };
 
@@ -18,7 +18,7 @@ export default function Landing() {
           height={60}
           className="logo"
         />
-        <h1>AI-lergy</h1>
+        <h1>Menukey</h1>
         <p className="subtitle">Choose your venue</p>
       </header>
 

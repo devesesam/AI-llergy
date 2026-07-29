@@ -6,14 +6,14 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  /*
+   * Scoped to the Supabase-backed dashboard/auth surface ONLY.
+   *
+   * This used to match every path, which meant each public menu request (the
+   * QR-code destination, `/[venue]`) blocked on `supabase.auth.getUser()` — a
+   * network round-trip to a DB the public pages never read, and a hang if the
+   * project is paused. The public allergen experience runs entirely off the
+   * Google Sheet and must not touch Supabase. See `venues.ts` / `menu-service.ts`.
+   */
+  matcher: ['/dashboard/:path*', '/login', '/signup', '/auth/:path*'],
 }

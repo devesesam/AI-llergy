@@ -110,7 +110,7 @@ export default function VenueSettings({
             <Field
               label="Public URL slug"
               required
-              help={`Public menu: /v/${slug || 'your-venue'}`}
+              help={`Public menu: /${slug || 'your-venue'}`}
             >
               <Input
                 value={slug}

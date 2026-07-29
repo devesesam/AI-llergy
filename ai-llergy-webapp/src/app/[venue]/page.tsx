@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: PageProps) {
   const { venue: slug } = await params;
   const venue = getVenueBySlug(slug);
   return {
-    title: venue ? `${venue.name} | AI-lergy` : "Menu | AI-lergy",
+    title: venue ? `${venue.name} | Menukey` : "Menu | Menukey",
     description: `Filter the menu at ${venue?.name || "this venue"} by your dietary requirements and allergies`,
   };
 }

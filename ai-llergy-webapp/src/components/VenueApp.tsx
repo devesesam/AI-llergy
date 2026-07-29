@@ -209,7 +209,7 @@ export default function VenueApp({ venue }: { venue: VenueConfig }) {
               height={60}
               className="logo"
             />
-            <h1>AI-lergy</h1>
+            <h1>Menukey</h1>
             <p className="subtitle">{venue.name}</p>
           </header>
 
@@ -255,7 +255,7 @@ export default function VenueApp({ venue }: { venue: VenueConfig }) {
             height={60}
             className="logo"
           />
-          <h1>AI-lergy</h1>
+          <h1>Menukey</h1>
           <p className="subtitle">{venue.name} — select allergens to avoid</p>
         </header>
 

@@ -39,9 +39,29 @@ belongs to which venue is declared in the static registry **`ai-llergy-webapp/sr
 
 ## 2. Deployment (IMPORTANT)
 
-- Production is on **Netlify** at **https://ai-lergy.co.nz** (single "l"). The `ai-llergy.co.nz`
-  strings in code are just the intended venue-URL label and don't resolve. (Directives elsewhere say
-  Vercel — that's outdated.)
+- Production is on **Netlify** at **https://menukey.co.nz**. (Directives elsewhere say Vercel —
+  that's outdated.)
+- **Domains (as of 2026-07-30)** — the product moved off `ai-lergy.co.nz` to **menukey.co.nz**,
+  bought by Tom (Mosaic). Nameservers are managed in Netlify.
+
+  | Hostname | Serves | Netlify site |
+  |---|---|---|
+  | `menukey.co.nz` | public allergen picker (the QR-code destination) | `ai-llergy-webapp` |
+  | `app.menukey.co.nz` | the venue dashboard (currently unused) | `ai-llergy-webapp` |
+  | `set.menukey.co.nz` | Set Menu Builder | `set-menu-builder` |
+
+  Old hosts (`ai-lergy.co.nz`, `app.ai-lergy.co.nz`, `setmenu.ai-lergy.co.nz`) should 301 to their
+  new counterparts. **No QR codes were ever printed on the old domain**, so nothing physical breaks.
+- **No domain strings exist in app code.** Every URL is derived at runtime from
+  `window.location.origin` (client) or `new URL(request.url).origin` (server), so a domain change
+  needs no redeploy for correctness — only the Supabase Auth config below.
+- **No Supabase config needed for the domain move.** Supabase is not used for anything
+  (decided 2026-07-30) and no public route touches it — see `project_ai_llergy.md` § "Public venue
+  route". The only Supabase-dependent surface is the unused dashboard at `app.menukey.co.nz`. If it
+  is ever revived, its Auth URL Configuration must be repointed by hand (Site URL
+  `https://app.menukey.co.nz`, Redirect URLs `https://app.menukey.co.nz/**`), because
+  `LoginForm.tsx` passes `emailRedirectTo: ${window.location.origin}/auth/callback` and Supabase
+  silently falls back to the Site URL for any redirect not on its allowlist.
 - Env vars (`GOOGLE_SHEET_ID`, `ANTHROPIC_API_KEY`) live in **Netlify → Site configuration →
   Environment variables**, and in `.env.local` for local dev. (`GOOGLE_SUBSTITUTIONS_GID` is
   **retired** — per-venue gids now live in `src/lib/venues.ts`, not env.)
@@ -74,7 +94,7 @@ Columns: a **name** column, `Ingredients`, `Price`, then one column per allergen
   `allergens.ts`).
 - **`Include in set menu` column (shared with the Set Menu Builder).** A `YES`/`NO` column (blank ⇒
   `NO`) now lives on these menu tabs. The **allergen app ignores it** (it's just another unknown
-  column). The **Set Menu Builder** (`setmenu.ai-lergy.co.nz`, `set-menu-builder/`) reads it as an
+  column). The **Set Menu Builder** (`set.menukey.co.nz`, `set-menu-builder/`) reads it as an
   **opt-in flag** — only `YES` dishes may be AUTO-added to a generated set menu; `NO`/blank dishes
   (desserts, Kisa "lunch plates") never auto-populate but stay manually addable. ⚠ Because blank ⇒
   `NO`, **every set-menu-eligible dish must be explicitly `YES`**, or that app's optimiser has nothing
@@ -113,7 +133,7 @@ See `directives/substitutions.md` for the full feature. Columns:
 | A specific allergen filter does nothing / sends everything to slow AI path | Its column was renamed/removed, or isn't registered in `allergens.ts` | Match the sheet header to `allergens.ts` `columnName` exactly, or register it |
 | A dish that should be "modifiable" shows as plain Safe | The menu marks it `… FREE = YES`, so it's never excluded → nothing to rescue | Set that allergen column to `NO` for the dish (it must "contain" the allergen to be rescued) |
 | Substitution introduces-guard stops blocking unsafe swaps | The introduced-allergen column was renamed beyond `Introduces`/`Introduces allergy` | Keep the header recognizable, or extend the matcher in `substitutions.ts` |
-| Works locally, broken on ai-lergy.co.nz | Code fix not redeployed, or env var missing on Netlify | Redeploy; set the env var on Netlify |
+| Works locally, broken on menukey.co.nz | Code fix not redeployed, or env var missing on Netlify | Redeploy; set the env var on Netlify |
 
 **Golden rule for the Sheet:** the menu tab must be the first tab, keep an `Item`/`Dish` name column,
 and don't rename/remove allergen column headers unless you also update `allergens.ts`. The app is

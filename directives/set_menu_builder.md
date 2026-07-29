@@ -16,7 +16,7 @@ creative cross-tier substitutions.
 - **Location**: `set-menu-builder/` (sibling to `ai-llergy-webapp/`). Next.js 16 + React 19 + TS
   + Tailwind v4. No Supabase / no Anthropic — the builder is fully deterministic.
 - **Own nested git repo** `devesesam/set-menu-builder` (branch `master`), own Netlify site →
-  **setmenu.ai-lergy.co.nz**. Mirrors how `ai-llergy-webapp` deploys. See
+  **set.menukey.co.nz**. Mirrors how `ai-llergy-webapp` deploys. See
   `github_deployment.md` (now THREE repos).
 - **Env**: `GOOGLE_SHEET_ID` = the SAME sheet the allergen app reads
   (`1xxS6NRa16fptx3c4CJ5-V6mp-yDIHDGb7RnLx03isaw`). Set it in Netlify and in
@@ -28,7 +28,7 @@ creative cross-tier substitutions.
 1. `cd set-menu-builder && git init`, commit, create `devesesam/set-menu-builder`, push `master`.
 2. New Netlify site from that repo (build `next build`, Next.js runtime, no `netlify.toml`).
 3. Netlify env: `GOOGLE_SHEET_ID=<same as prod>`.
-4. DNS: `CNAME setmenu → <new-site>.netlify.app`; add `setmenu.ai-lergy.co.nz` as a custom
+4. DNS: `CNAME set → <new-site>.netlify.app`; add `set.menukey.co.nz` as a custom
    domain on the new site.
 
 ---
@@ -379,7 +379,7 @@ A future improvement is extracting the shared copies into a package; out of scop
 
 ## 7. Status & roadmap
 
-- **v2 — Live.** Deployed to Netlify (`devesesam/set-menu-builder` → setmenu.ai-lergy.co.nz),
+- **v2 — Live.** Deployed to Netlify (`devesesam/set-menu-builder` → set.menukey.co.nz),
   tested across all three venues. Set-menu tabs wired in `venues.ts` (kisa `395901294`,
   mr-gos `1707387833`, ombra `321541246`); substitution tabs now wired for all three
   (kisa `1265271651`, mr-gos `1639397504`, ombra `1976184234`). Mr Go's dish keys all resolved.
