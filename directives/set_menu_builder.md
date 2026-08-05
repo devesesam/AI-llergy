@@ -321,15 +321,37 @@ Map/Set iteration order. Same inputs → same output.
 > swaps you must either rank dishes that are actually GF/DF/veg-safe, or add the per-category
 > `<Allergen> Priority` columns. (Tom's original instinct about per-category columns was right.)
 
-**Coverage lives in `src/lib/coverage-core.ts` (pure, shared).** The scoring formula
-(`eatersForShared`, `coverageNumerator`, `coverageScore`, `coverageMap`, `canEatShared`, the
-`COVERAGE_THRESHOLD = 0.9` / `COVERAGE_THRESHOLD_DIETARY = 0.85` / `DESIGNED_FOR = 4` constants, and
-the `thresholdFor(isDietary)` helper) was extracted so the **browser** can recompute coverage +
-pass/fail live as the planner edits the menu (Phase B), with **zero drift** — the server build imports
-the exact same functions/constants. Inputs are plain data (`CoverageDish`, `CoverageGuest`);
-`build-set-menu.ts` adapts its `WorkingDish`/`GuestAccess` at the call sites (for a known dish,
-`itemKey === dishKey`, so the adaptation is lossless). Changing the metric = edit `coverage-core.ts`
-once; both server and client follow.
+> **⚠ Phase K (CURRENT — Kisa per-guest allocation rules) — bread / kebab skewers / boreks.**
+> Tom's Kisa-only rules, hardcoded in **`src/lib/allocation-rules.ts`** (Sam's call: code, not sheet
+> columns — a rule change needs a deploy). A ruled dish is re-based to its serving **UNIT**:
+> `qty = perGuest × guestCount` units, `unitPrice = menu-tab dish price ÷ unitsPerDish` (the set-menu
+> line's Price bakes a 4-top's multiple in, so the à-la-carte price is authoritative; a 4-top exactly
+> reproduces the old tier prices $14/$52/$20). All quantities stay **integers** — the fractional dish
+> count Tom bills by ("2.5 dishes", "1⅔ dishes") is display formatting (`allocQty` in
+> `BuiltMenuResult.tsx`: "5 skewers (2½ dishes)", unicode ½⅓⅔).
+> - **Rules:** `pita` (1/dish, $3.50/pita, replacement → `yufka`), `lamb urfa kebab` + `wapiti kebab`
+>   (2 skewers/dish → $13 / $15.50 per skewer), `mozzarella boreks` (3/dish → $5/borek). All 1 unit per
+>   guest. ⚠ Tiers 68/78 list BOREKS at $19.50 (not a $5 multiple) — superseded by the unit price; a
+>   4-top now bills $20 on every tier. Flagged to Tom as a likely sheet typo.
+> - **Locked lines.** Ruled lines get `SharedDish.locked = true` + an `allocation {unitsPerDish,
+>   unitName, perGuest}` payload. Step B never scales them; the optimiser never bumps, reduces,
+>   duplicates (as dedicated extras), re-adds or dedicates them (`lockedKeys` = ruled dishes + their
+>   replacements, threaded into `optimise`; line-level `locked` guards at every `withReduced` site).
+>   The editor hides the ± steppers on locked rows (badge: "1 per guest"); the docket/waiter card show
+>   a note like `5 skewers (2½ dishes) — 1 per guest`.
+> - **Dietary always wins** (`applyAllocationDietaryAdjustments`, runs after guest access, before the
+>   optimiser): a submitted dietary guest who can't **SAFELY** eat the dish **skips their unit** (line
+>   shrinks by `perGuest`; dropped entirely if it reaches 0), freeing budget for the optimiser to feed
+>   them properly. A rule with `replacementKeys` (bread) instead gives each excluded guest the first
+>   replacement that is safe for them, as a locked **dedicated** line (GF guest → `Yufka ×1 only for
+>   them`, $4). No safe replacement (e.g. gluten+soy — Yufka contains soy) → unit skipped + explicit
+>   warning ("no safe replacement for Pita"), never an unsafe swap. Non-submitted seats always keep
+>   their unit.
+> - **Verified:** G=4/5/8 no-dietary (qty = G on all three, G=5 urfa = "5 skewers (2½ dishes)" $65,
+>   boreks $25; 4-top = old tier exactly); GF guest (pita −1 + dedicated Yufka, urfa kept — it's GF);
+>   gluten+soy (no yufka, warning); vegetarian (skewer skipped); heavy-dietary G=8 (locked lines exact,
+>   $463.50/$464, all covered); tiers 68/78 (incl. wapiti); determinism; **mr-gos + ombra byte-identical
+>   to pre-Phase-K live production** (venues without rules are untouched by construction).
 
 **Coverage lives in `src/lib/coverage-core.ts` (pure, shared).** The scoring formula
 (`eatersForShared`, `coverageNumerator`, `coverageScore`, `coverageMap`, `canEatShared`, the
@@ -563,8 +585,15 @@ A future improvement is extracting the shared copies into a package; out of scop
   the live sheet (verified end-to-end: `POST /api/build` returns real per-venue data, `GET /api/health`
   returns all three venues from `source: "sheet"`). Netlify `GOOGLE_SHEET_ID` + DNS are correct; the old
   `setmenu.ai-lergy.co.nz` host still resolves (301). No open deployment items.
-- **Only remaining data gap: 1 unresolved Dish Key** (Mr Go's `KUNG PAO CAULIFLOWER` — see §2). Everything
-  else resolves, including Ombra's `Slow cook lamb` and `Gnocchi`.
+- **No unresolved Dish Keys (2026-08-06).** The last gap (Mr Go's `KUNG PAO CAULIFLOWER V2.0`) was fixed
+  in the sheet by Sam — `/api/health` reads `ok: true, totalUnresolved: 0` across all three venues.
+- **v2 Phase K delivered — Kisa per-guest allocation rules (Tom round 5).** 1 pita / 1 kebab skewer /
+  1 borek per guest, scaling exactly with the party; GF guests get a GF yufka in place of their pita
+  (dietary always wins — a guest who can't safely eat an allocated dish skips their unit, bread gets the
+  replacement chain); kebab dish = 2 skewers billed in halves, borek dish = 3 billed in thirds
+  ("5 skewers (2½ dishes) $65"). Rules hardcoded in `src/lib/allocation-rules.ts` (Kisa only); ruled
+  lines are `locked` — untouched by Step B, the optimiser and the editor steppers. See §3 ⚠ Phase K.
+  **Verified:** allocation battery all-pass, and mr-gos/ombra byte-identical to pre-change production.
 - **Known refinement (minor):** for a heavily-restricted guest whose only safe dishes are already
   on the shared table, the optimiser can add both a shared copy AND a dedicated portion of the same
   dish (e.g. two coconut sagos). Correct + within budget, just slightly redundant; the Phase B
