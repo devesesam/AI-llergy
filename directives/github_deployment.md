@@ -13,18 +13,19 @@
 |---|---|---|---|---|
 | **`devesesam/ai-llergy-webapp`** | nested `ai-llergy-webapp/.git` | **`master`** | The allergen-filter Next.js app (`src/`, etc.) | **Netlify deploys this** → menukey.co.nz |
 | **`devesesam/set-menu-builder`** | nested `set-menu-builder/.git` | **`master`** | The Set Menu Builder Next.js app (separate product, shares the same Google Sheet) | **Netlify deploys this** → set.menukey.co.nz |
-| **`devesesam/AI-llergy`** | workspace root `.git` | **`workspace`** | `directives/`, `execution/` scripts, CSVs/PDFs/data (`resources/`), **and a tracked copy of the `ai-llergy-webapp/` files**. **`set-menu-builder/` is NOT tracked here** — it lives only in its own repo, shown as `?? set-menu-builder/` (untracked); do **not** `git add` it into the outer repo (nested-repo/submodule mess). | Full-project backup; **NOT deployed** |
+| **`devesesam/AI-llergy`** | workspace root `.git` | **`workspace`** | `directives/`, `execution/` scripts, `resources/` (Tom's spreadsheets, allergen master PDFs), `archive/` (retired code + old data snapshots), `CLAUDE.md`. **Both app folders are gitignored here** (`ai-llergy-webapp/`, `set-menu-builder/`) — each lives only in its own nested repo; never `git add` them into the outer repo. | Docs/scripts/data; **NOT deployed** |
 
 - **Deploy an allergen-app change** → commit + push the **`ai-llergy-webapp`** nested repo's `master`.
 - **Deploy a set-menu-builder change** → commit + push the **`set-menu-builder`** nested repo's `master`.
-- **Back up docs/scripts/data** → commit + push the **outer** repo's `workspace`. (It also tracks a copy
-  of the `ai-llergy-webapp/` files, which is why `git status` at the root shows those app files as
-  "modified" — that overlap is what masks the nesting and confuses people. `set-menu-builder/` is
-  **untracked** here — it has no outer copy; back it up via its own repo only.)
+- **Back up docs/scripts/data** → commit + push the **outer** repo's `workspace`.
+- Until 2026-09-05 the outer repo also tracked a *copy* of the `ai-llergy-webapp/` files. That copy was removed
+  (Sam's decision) because it deployed nothing, drifted between manual syncs, and masked the nesting. Deploys were
+  verified via `netlify sites:list`: menukey.co.nz ← `devesesam/ai-llergy-webapp`, set.menukey.co.nz ←
+  `devesesam/set-menu-builder`; the outer repo is linked to no Netlify site.
 - Each nested app is independent: a code change in one does NOT redeploy the other.
 - The outer repo's history goes back to Feb 2026, all authored by the owner. It is *their* repo, not
   something an agent created.
-- `.env.local` is gitignored in **both** repos — never commit it (holds the Anthropic + Supabase keys).
+- `.env.local` is gitignored in **both** app repos — never commit it (holds `GOOGLE_SHEET_ID` + the Anthropic key).
 - **Important**: the webapp is a **nested repository** (its own `.git` inside the outer repo).
 
 ---
@@ -62,17 +63,16 @@ git push origin master
 
 ## 3. Known Issues & Workarounds
 
-### Issue 1: The `nul` File (Windows)
-**Symptoms**:
-*   `git add .` in the **root** workspace fails with `error: invalid path 'nul'`.
-*   `del nul` fails with "ItemNotFoundException".
-
-**Cause**: `nul` is a reserved device name in Windows (like `/dev/null` in Unix). A file named `nul` was somehow created (likely by a script or tool from a non-Windows environment), and Windows file APIs cannot handle it normally. It acts as a ghost file.
-
-**Workaround**:
-*   **Do not use** `git add .` in the root workspace if it tries to include `nul`.
-*   Add `nul` to `.gitignore` in the root (already done, but git might still track it if it was previously there).
-*   If you must commit the root, explicitly stage specific files/folders (e.g., `git add directives/`) instead of checking in everything.
+### Issue 1: The `nul` File (Windows) — RESOLVED 2026-09-05
+A zero-byte file literally named `nul` (a reserved Windows device name) sat in the workspace root for months; `del`,
+`rm` and Explorer all fail on it and `git add .` at the root errored with `invalid path 'nul'`. It was finally deleted
+with .NET's extended-length path syntax from PowerShell:
+```powershell
+[System.IO.File]::Delete('\?\C:\<abs path to workspace>
+ul')
+```
+If it ever reappears (a non-Windows tool redirecting to `nul`), use the same command. Do not add `nul` to `.gitignore`
+as a workaround — delete it.
 
 ### Issue 2: Nested Submodule Conflicts
 **Symptoms**:
@@ -81,14 +81,11 @@ git push origin master
 
 **Cause**: The folder `ai-llergy-webapp` is a fully initialized git repo inside another git repo.
 
-**Current reality (do not "fix" this without the owner's say-so)**:
-*   Treat them as separate entities.
-*   **Deploy work**: commit + push `ai-llergy-webapp` (`master`) — only this updates the live site.
+**Current reality**:
+*   Treat them as separate entities. **Deploy work**: commit + push the nested app repo's `master`.
 *   **Docs/data**: commit + push the root repo (`workspace`).
-*   The root repo **currently tracks a copy** of the `ai-llergy-webapp/` files (it is NOT gitignored and
-    NOT a submodule). That overlap is intentional-enough as a backup — pushing both keeps them in sync.
-    Don't add `ai-llergy-webapp/` to the root `.gitignore` or convert it to a submodule unless the owner
-    explicitly asks to consolidate; doing so silently would drop the webapp copy from the backup repo.
+*   Both app folders are in the root `.gitignore`, so root `git status` no longer lists them at all. Do not convert them to
+    submodules and do not remove them from `.gitignore` without the owner asking.
 
 ### Issue 3: PowerShell Operator Conflicts
 **Symptoms**:
@@ -105,5 +102,5 @@ git push origin master
 ## 4. Best Practices for Future Agents
 
 1.  **Check Your PWD**: Always run `pwd` or look at the prompt to know if you are in the root or the webapp folder.
-2.  **Targeted Commits**: In the root workspace, avoid `git add .`. Instead, `git add directives/` or `git add AGENTS.md` to update documentation without tripping over the `nul` file or nested repos.
+2.  **Targeted Commits**: In the root workspace, prefer `git add directives/ execution/ resources/ archive/ CLAUDE.md` over `git add .`.
 3.  **Status Check**: Run `git status` before adding to see what unwanted files (like `nul` or `tmp/`) might be lurking.

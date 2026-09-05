@@ -1,102 +1,87 @@
-# Agent Instructions
+# Menukey workspace — agent instructions
 
-> This file is mirrored across CLAUDE.md, AGENTS.md, and GEMINI.md so the same instructions load in any AI environment.
+Menukey (formerly AI-lergy) is a pair of small Next.js apps for **Mosaic Venues** (Tom) built around a
+single shared **Google Sheet** of per-venue menus and allergen flags:
 
-You operate within a 3-layer architecture that separates concerns to maximize reliability. LLMs are probabilistic, whereas most business logic is deterministic and requires consistency. This system fixes that mismatch.
+| App | Folder | Live at | Deploys from |
+|---|---|---|---|
+| **Allergen menu** — a diner picks allergens, sees what they can eat (+ chef substitutions) | `ai-llergy-webapp/` | https://menukey.co.nz (`/kisa`, `/mr-gos`, `/ombra`) | GitHub `devesesam/ai-llergy-webapp`, branch `master` → Netlify |
+| **Set Menu Builder** — staff plan a group booking: tier + guest count + per-guest dietaries → costed shared menu + kitchen docket | `set-menu-builder/` | https://set.menukey.co.nz | GitHub `devesesam/set-menu-builder`, branch `master` → Netlify |
 
-## The 3-Layer Architecture
+Venues: Kisa (the original test venue), Mr Go's, Ombra. Old `ai-lergy.co.nz` hosts 301 to the new domains.
+No domain is hardcoded anywhere — don't add one.
 
-**Layer 1: Directive (What to do)**
-- Basically just SOPs written in Markdown, live in `directives/`
-- Define the goals, inputs, tools/scripts to use, outputs, and edge cases
-- Natural language instructions, like you'd give a mid-level employee
+## The three git repos (read this before any git command)
 
-**Layer 2: Orchestration (Decision making)**
-- This is you. Your job: intelligent routing.
-- Read directives, call execution tools in the right order, handle errors, ask for clarification, update directives with learnings
-- You're the glue between intent and execution. E.g you don't try scraping websites yourself—you read `directives/scrape_website.md` and come up with inputs/outputs and then run `execution/scrape_single_site.py`
+- `ai-llergy-webapp/.git` and `set-menu-builder/.git` are **nested, independent repos**. Pushing their
+  `master` is what deploys. Always `git remote -v` first; if it shows `AI-llergy.git` you are in the
+  wrong directory.
+- The **outer** repo (this folder, `devesesam/AI-llergy`, branch `workspace`) holds `directives/`,
+  `execution/`, `resources/`, `archive/` and this file. It deploys nothing. **Both app folders are
+  gitignored here — never `git add` them into the outer repo.** (Until Sept 2026 it carried a stale copy
+  of the webapp; that was removed. History keeps it.)
+- "Push all changes" = commit the relevant app repo(s) **and** the outer repo. Avoid `git add .` at the
+  root; stage folders explicitly.
+- Full detail + known Windows/PowerShell gotchas: `directives/github_deployment.md`.
 
-**Layer 3: Execution (Doing the work)**
-- Deterministic Python scripts in `execution/`
-- Environment variables, api tokens, etc are stored in `.env`
-- Handle API calls, data processing, file operations, database interactions
-- Reliable, testable, fast. Use scripts instead of manual work.
+## Data: the Google Sheet is the only source of truth
 
-**Why this works:** if you do everything yourself, errors compound. 90% accuracy per step = 59% success over 5 steps. The solution is push complexity into deterministic code. That way you just focus on decision-making.
+- One sheet, one tab per venue for the menu (`<Venue>` tab: Item, Ingredients, Price, `Include in set
+  menu`, `Set menu priority`, optional `<Allergen> Priority`, then one YES/NO/CAN BE column per allergen),
+  one `<Venue> Substitutions` tab, and one `<Venue> Set Menu` tab for the builder. Tab gids live in each
+  app's `src/lib/venues.ts`.
+- The sheet **ID lives only in `.env.local` / Netlify env** (`GOOGLE_SHEET_ID`). Never paste an ID from
+  docs or history into code or scripts — an old sample sheet exists and reads plausibly but stale.
+- Data quality: `GET /api/health` on the builder reports unresolved `Dish Key`s (a set-menu dish that
+  no longer matches the menu tab becomes "no allergen data" and is never treated as safe). Drive it to
+  zero after any sheet rename. Schema/column rules: `directives/google_sheet_data_source.md`.
+- Supabase and the chef dashboard are **retired** (chefs preferred the sheet). Code and docs are in
+  `ai-llergy-webapp/_archive/` and `directives/archive/`; don't resurrect them without asking.
 
-## Operating Principles
+## Code layout that matters
 
-**1. Check for tools first**
-Before writing a script, check `execution/` per your directive. Only create new scripts if none exist.
+- Allergen engine (both apps): `src/lib/allergens.ts` (id ↔ sheet column), `filter-menu.ts` (YES/NO/CAN
+  BE + substitution rescue), `substitutions.ts`, `menu-service.ts` (sheet fetch + 10-min cache).
+  **`allergens.ts` and `substitutions.ts` are COPIED from the webapp into the builder — keep them in
+  sync and run `python execution/check_lib_sync.py` after touching either.** The builder's
+  `menu-service.ts` intentionally diverges (extra set-menu columns).
+- Builder core: `set-menu-builder/src/lib/build-set-menu.ts` (tier scaling + dietary optimiser),
+  `coverage-core.ts` (Tom's coverage metric, shared by server and browser — change it in one place),
+  `allocation-rules.ts` (Kisa per-guest bread/skewer/borek rules), `components/BuiltMenuResult.tsx`
+  (draft editor, kitchen docket, waiter card). Spec + history: `directives/set_menu_builder.md`.
+- Invariants the builder must never break: the party budget is a **hard cap**; **every** guest
+  (dietary and not) is held to their coverage threshold or explicitly flagged "Needs review"; a base
+  set-menu dish is never dropped below 1 portion; allocation-rule lines are never changed by the
+  optimiser; output is deterministic.
+- `globals.css` in either app: **append only**, never rewrite (multiple screens share it).
 
-**2. Self-anneal when things break**
-- Read error message and stack trace
-- Fix the script and test it again (unless it uses paid tokens/credits/etc—in which case you check w user first)
-- Update the directive with what you learned (API limits, timing, edge cases)
-- Example: you hit an API rate limit → you then look into API → find a batch endpoint that would fix → rewrite script to accommodate → test → update directive.
+## Execution scripts (`execution/`) — use them, don't redo the work by hand
 
-**3. Update directives as you learn**
-Directives are living documents. When you discover API constraints, better approaches, common errors, or timing expectations—update the directive. But don't create or overwrite directives without asking unless explicitly told to. Directives are your instruction set and must be preserved (and improved upon over time, not extemporaneously used and then discarded).
+| Script | When |
+|---|---|
+| `set_menu_battery.py` | After ANY builder change. `cd set-menu-builder && npm run build && npm run start`, then `python execution/set_menu_battery.py --compare execution/battery_baseline_<latest>.json`. Asserts every invariant above across ~95 scenarios and prints the delta vs the last baseline. `--base https://set.menukey.co.nz` to check production; `--snapshot` to record a new baseline once a change is accepted. |
+| `check_lib_sync.py` | After touching `allergens.ts` / `substitutions.ts` in either app. Exit 1 = drift. |
+| `ingest_set_menus.py` | Re-ingest Tom's set-menu spreadsheet into the normalised per-venue CSVs / bundled fallback. |
+| `validate_substitutions.py` | Validate a chef's substitutions CSV before it goes into the sheet. |
+| `classify_nightshades.py` | Fill the NIGHTSHADE FREE column from ingredients. |
 
-**4. Preserving Legacy Functionality (Progressive Enhancement)**
-   - **Assume Criticality**: When implementing new features in an existing codebase, assume that existing code is critical unless proven otherwise.
-   - **CSS/Styles**: Never overwrite global stylesheets (`globals.css`) completely. Always **append** new styles or use specific imports to avoid breaking other pages.
-   - **Refactoring**: Before deleting code, verify its usage across the *entire* project, not just the file you are working on.
-   - **Isolation**: If a new feature requires a radically different style, isolate it (e.g., using CSS modules, scoped classes, or a separate layout file) rather than changing global defaults.
+Scripts are deterministic Python 3.11, no LLM calls, stdlib only. Intermediate files go in `.tmp/`
+(gitignored). On Windows set `PYTHONIOENCODING=utf-8` when output has emoji.
 
-## Self-annealing loop
+## How to work here
 
-Errors are learning opportunities. When something breaks:
-1. Fix it
-2. Update the tool
-3. Test tool, make sure it works
-4. Update directive to include new flow
-5. System is now stronger
+1. Read the relevant directive before changing behaviour; they are the spec. Update the directive with
+   what you learn (constraints, edge cases, decisions) in the same change — but don't create or discard
+   directives without asking.
+2. Verify like this: `npm run build` → `npm run start` → battery (builder) or a manual smoke of
+   `/kisa` + `POST /api/submit` (webapp) → push → re-check the live URL. Report what you actually ran.
+3. Tom's feedback arrives in numbered phases (builder is at Phase K/L). Each phase gets a ⚠ block in
+   `set_menu_builder.md` and a memory note; earlier blocks are history, the latest is the authority.
+4. Ask before anything hard to reverse: deleting Netlify sites/env vars, rewriting sheet tabs, force
+   pushes, changing thresholds or the coverage metric.
 
-## File Organization
+## Data hygiene Tom knows about (no action unless asked)
 
-**Deliverables vs Intermediates:**
-- **Deliverables**: Google Sheets, Google Slides, or other cloud-based outputs that the user can access
-- **Intermediates**: Temporary files needed during processing
-
-**Directory structure:**
-- `.tmp/` - All intermediate files (dossiers, scraped data, temp exports). Never commit, always regenerated.
-- `execution/` - Python scripts (the deterministic tools)
-- `directives/` - SOPs in Markdown (the instruction set)
-- `.env` - Environment variables and API keys
-- `credentials.json`, `token.json` - Google OAuth credentials (required files, in `.gitignore`)
-
-**Key principle:** Local files are only for processing. Deliverables live in cloud services (Google Sheets, Slides, etc.) where the user can access them. Everything in `.tmp/` can be deleted and regenerated.
-
-## Cloud Webhooks (Modal)
-
-The system supports event-driven execution via Modal webhooks. Each webhook maps to exactly one directive with scoped tool access.
-
-**When user says "add a webhook that...":**
-1. Read `directives/add_webhook.md` for complete instructions
-2. Create the directive file in `directives/`
-3. Add entry to `execution/webhooks.json`
-4. Deploy: `modal deploy execution/modal_webhook.py`
-5. Test the endpoint
-
-**Key files:**
-- `execution/webhooks.json` - Webhook slug → directive mapping
-- `execution/modal_webhook.py` - Modal app (do not modify unless necessary)
-- `directives/add_webhook.md` - Complete setup guide
-
-**Endpoints:**
-- `https://nick-90891--claude-orchestrator-list-webhooks.modal.run` - List webhooks
-- `https://nick-90891--claude-orchestrator-directive.modal.run?slug={slug}` - Execute directive
-- `https://nick-90891--claude-orchestrator-test-email.modal.run` - Test email
-
-**Available tools for webhooks:** `send_email`, `read_sheet`, `update_sheet`
-
-**All webhook activity streams to Slack in real-time.**
-
-## Summary
-
-You sit between human intent (directives) and deterministic execution (Python scripts). Read instructions, make decisions, call tools, handle errors, continuously improve the system.
-
-Be pragmatic. Be reliable. Self-anneal.
-
-Also, use Opus-4.5 for everything while building. It came out a few days ago and is an order of magnitude better than Sonnet and other models. If you can't find it, look it up first.
+Kisa `Ezmesi` has no price (excluded from the builder); Kisa tiers 68/78 list BOREKS at $19.50 (the
+builder bills $5/borek, so a 4-top shows $20); the `Set menu priority` numbers are Sam's placeholders
+until the chefs rank dishes.

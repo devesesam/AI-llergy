@@ -5,7 +5,10 @@ __pycache__/
 .DS_Store
 credentials.json
 token.json
-nul
 .claude/
 node_modules/
 .next/
+# The two deployable apps are their OWN nested git repos (see directives/github_deployment.md).
+# They must never be added to this outer repo.
+ai-llergy-webapp/
+set-menu-builder/

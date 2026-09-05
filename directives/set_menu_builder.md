@@ -70,13 +70,12 @@ typed with plain ASCII hyphens and still match menu names that use en-dashes (an
 copy-paste encoding damage — see §8). A blank Dish Key = allergen-unknown (never marked safe).
 
 ### Dish-name reconciliation (drive blanks to zero)
-**Live state as of 2026-07-30 — `totalUnresolved: 1`** (verified via `GET /api/health`):
-- **Mr Go's** — one Set Menu row with `Dish` = `KUNG PAO CAULIFLOWER`, `Dish Key` =
-  `kung pao cauliflower`, but the MENU tab item is now named **`Kung Pao Cauliflower V2.0`** → no
-  match → allergen-unknown. Fix either side (drop " V2.0" from the menu tab, or set the Dish Key to
-  the full new name). A *second* row for the same dish was already fixed, so only one remains.
-  ⚠ **Recurring failure mode:** renaming a dish on the MENU tab silently breaks every Set Menu row
-  that references it. Don't put version numbers in the menu-tab name.
+**Live state as of 2026-08-06 — `totalUnresolved: 0`, all three venues `ok`** (verified via
+`GET /api/health`). The last gap — Mr Go's `KUNG PAO CAULIFLOWER` whose menu-tab item had been renamed
+`Kung Pao Cauliflower V2.0` — was fixed in the sheet by setting every tier row's `Dish Key` to the full
+new name. ⚠ **Recurring failure mode:** renaming a dish on the MENU tab silently breaks every Set Menu
+row that references it. Don't put version numbers in the menu-tab name; after any rename, check
+`/api/health`.
 
 RESOLVED: Ombra `Gnocchi…` (key had ` - ` instead of a comma plus a `(with pancetta +8)` suffix —
 fixed 2026-07-30). Mr Go's `MUSHROOM 'XO' FRIED RICE` and `CHILLI & COCONUT CHICKEN SALAD`, and
@@ -443,6 +442,11 @@ app changes them, **re-sync**:
 - **`substitutions.ts`** — parsing + `normalizeDishName` (also the set-menu JOIN key).
 - `google-sheets.ts`, `menu-service.ts`, `filter-menu.ts` are ported/trimmed (AI + confidence
   paths dropped). Less churn-prone but keep the column logic aligned.
+
+**Guard:** `python execution/check_lib_sync.py` compares the allergen (id | columnName | label) list
+in both `allergens.ts` copies and the logic of both `substitutions.ts` copies (formatting ignored).
+Exit 1 + diff on drift. Run it after touching either file in either app. (Added 2026-09-05; the
+webapp's `allergens.ts` carries extra UI-only types — only the allergen list is compared.)
 - ⚠ **`menu-service.ts` has DIVERGED from prod** — it adds `MenuItem.includeInSetMenu` +
   `readIncludeInSetMenu()` (the "Include in set menu" opt-in flag, §3), which the allergen app does
   NOT have. When re-syncing from prod, **re-apply that addition** — don't blindly overwrite the file.
@@ -455,6 +459,23 @@ A future improvement is extracting the shared copies into a package; out of scop
 
 ## 6. Verification
 
+**The regression battery (run after ANY builder change):**
+```
+cd set-menu-builder && npm run build && npm run start          # production build on :3000
+python execution/set_menu_battery.py --compare execution/battery_baseline_phase_k.json
+```
+`execution/set_menu_battery.py` hits `/api/build` with **95 scenarios** (3 venues × {none, 1 gluten,
+2 gluten + 1 dairy, gluten+garlic & dairy+eggs, vegan, 7-allergy} × parties {3,5,6,8,10}, plus the
+Kisa allocation cases) and asserts the invariants: never over budget (except the documented
+party-<4 "consider a smaller tier" case), no tier dish below 1×, every guest `met || bestEffort`,
+≤3 of one dish per guest, integer allocation qtys, determinism (each scenario run twice).
+`--compare <snapshot>` prints a readable per-scenario delta (dishes added/removed, guest score
+changes) against the last accepted baseline; `--snapshot <file>` records a new baseline once a
+change is accepted (commit it as `execution/battery_baseline_<phase>.json`); `--base <url>` checks
+production; `--strict-grouping` additionally fails on duplicate (dish, guest-group) dedicated lines —
+the Phase L target (52 such duplicates exist in the Phase K baseline). Exit 1 on any failure.
+
+- Manual spot checks (historic):
 - `cd set-menu-builder && npm run build` passes; `npm run start` then `POST /api/build`:
   - **No-dietary** → optimiser no-ops; menu identical to the scaled tier.
   - **Moderate** (Mr Go's `44`, G=4, gluten+dairy) → covered ~0.83 via shared swaps, **0 dedicated**.
