@@ -52,8 +52,14 @@ STATUS_THRESHOLD = 0.85  # what the UI calls "Covered"
 MAX_SAME_DISH_PER_GUEST = 3
 
 
+SUBMIT_ALL = False  # --submit-all: also send the non-dietary seats as guests (what the UI does)
+
+
 def build(base: str, venue: str, tier: str, party: int, allergen_sets: list[list[str]]) -> dict:
-    guests = [{"id": f"g{i + 1}", "allergens": a} for i, a in enumerate(allergen_sets)]
+    sets = list(allergen_sets)
+    if SUBMIT_ALL:
+        sets += [[] for _ in range(max(0, party - len(sets)))]
+    guests = [{"id": f"g{i + 1}", "allergens": a} for i, a in enumerate(sets)]
     body = json.dumps({"venue": venue, "tier": tier, "guestCount": party, "guests": guests}).encode()
     req = urllib.request.Request(f"{base}/api/build", body, {"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=90) as r:
@@ -200,8 +206,13 @@ def main() -> int:
     ap.add_argument("--strict-grouping", action="store_true",
                     help="fail on duplicate (dish, guest-group) dedicated lines (Phase L target)")
     ap.add_argument("--no-determinism", action="store_true", help="skip the second run per scenario")
+    ap.add_argument("--submit-all", action="store_true",
+                    help="submit every seat as a guest (non-dietary ones with no allergens), as the UI does — "
+                         "asserts the whole-party threshold on real rows")
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args()
+    global SUBMIT_ALL
+    SUBMIT_ALL = args.submit_all
 
     wanted = set(args.venues.split(",")) if args.venues else set(VENUES)
     results: dict[str, dict] = {}

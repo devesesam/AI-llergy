@@ -163,7 +163,7 @@ keep the table, flag `coverage.bestEffort` + honest recommendation. Never fabric
 (**tier → score → kind (bump/add/swap/ded) → guests-helped → net cost → name**); no reliance on
 Map/Set iteration order. Same inputs → same output.
 
-> ### Optimiser rule stack — read Phase F → J in order
+> ### Optimiser rule stack — Phase L is the authority; F → K are history (still-true invariants noted)
 > Each block below layers on the previous one; where they conflict, the **later** phase wins. The
 > **current** behaviour = F + G + H + I + **J's overrides** (J reverses Phase H's over-budget allowance
 > and Phase H's blanket tier protection). Phase J is the authority on budget and dish-choice rules.
@@ -267,7 +267,7 @@ Map/Set iteration order. Same inputs → same output.
 > best-effort)** because Ombra genuinely lacks GF variety (menu-data gap). Well-covered venues (Kisa,
 > easy cases) unchanged. If the cap feels too tight on constrained menus, it's a one-constant bump.
 
-> **⚠ Phase J (CURRENT — authority on budget + dish choice) — HARD budget cap, 1× set-menu floor, per-category priorities, status labels.**
+> **⚠ Phase J (invariants still in force: hard budget, 1× floor, priorities, status labels — feeding logic superseded by Phase L) — HARD budget cap, 1× set-menu floor, per-category priorities, status labels.**
 > Tom's round-4 feedback. Four changes:
 > - **The budget is now a HARD cap.** `BUDGET_OVERAGE` is **deleted** — the tool must never exceed the
 >   customer's stated budget (`budgetCeiling = totalBudget`; Step B unchanged). `optimise` still returns a
@@ -320,7 +320,7 @@ Map/Set iteration order. Same inputs → same output.
 > swaps you must either rank dishes that are actually GF/DF/veg-safe, or add the per-category
 > `<Allergen> Priority` columns. (Tom's original instinct about per-category columns was right.)
 
-> **⚠ Phase K (CURRENT — Kisa per-guest allocation rules) — bread / kebab skewers / boreks.**
+> **⚠ Phase K (still in force — Kisa per-guest allocation rules) — bread / kebab skewers / boreks.**
 > Tom's Kisa-only rules, hardcoded in **`src/lib/allocation-rules.ts`** (Sam's call: code, not sheet
 > columns — a rule change needs a deploy). A ruled dish is re-based to its serving **UNIT**:
 > `qty = perGuest × guestCount` units, `unitPrice = menu-tab dish price ÷ unitsPerDish` (the set-menu
@@ -351,6 +351,66 @@ Map/Set iteration order. Same inputs → same output.
 >   gluten+soy (no yufka, warning); vegetarian (skewer skipped); heavy-dietary G=8 (locked lines exact,
 >   $463.50/$464, all covered); tiers 68/78 (incl. wapiti); determinism; **mr-gos + ombra byte-identical
 >   to pre-Phase-K live production** (venues without rules are untouched by construction).
+
+> **⚠ Phase L (CURRENT — THE AUTHORITY on how dietary guests are fed) — share accounting, not per-guest mini menus.**
+> Tom's round-5 feedback (2026-09-05): "the app is effectively adding a separate mini menu for every dietary
+> guest. If something already on the shared menu is suitable, they should eat from it; reduce their share
+> of anything unsuitable and add only enough of the highest-ranked suitable dishes to make up what they're
+> missing; guests with matching dietaries are one quantity calculation." The greedy per-guest optimiser
+> (Phases E–J's Phase 1 / Phase 2 loops, `onMenuSafeExtraActions`, `onMenuSwapBumpActions`, per-guest
+> dedicated clones) was **replaced**. What survives from earlier phases is listed at the end.
+> - **Groups** (`groupGuests`): submitted guests with an identical (sorted, deduped) allergen set are ONE
+>   `DietaryGroup {key, ids, safeKeys, n}`. Non-dietary guests and the `__party__` phantom are never grouped.
+> - **Eater-aware caps** (`eaterAwareCaps`): a dish's portion cap = base × ceil(**eaters** ÷ 4), eaters =
+>   guestCount − Σ n of groups that can't SAFELY eat it (allergen-unknown ⇒ no group can). This is "reduce
+>   their share of anything unsuitable" — with integer portions it bites once a group is large enough (a
+>   5-top with one excluded guest portions that dish for 4 ⇒ ×1 instead of ×2). No groups ⇒ the old
+>   base × ceil(G ÷ 4) exactly, so **non-dietary parties are byte-identical to Phase K**. Locked Phase-K
+>   lines cap at their fixed qty. The same cap governs Step B and every optimiser bump.
+> - **Step B with a reserve** (`reserveFor` + `fillTable`): before scaling, hold back Σ n × (0.85·perHead −
+>   the group's numerator on the base table) so the fill doesn't spend what the groups need; the groups
+>   draw on that headroom first and any leftover flows to the top-up. (Plan review showed fill-then-trim
+>   churns: it bumps Short Rib to ×2 and then trims it back.) Parties < 4 still keep the full base spread.
+> - **Group funding** (`fundGroups`, `candidatesFor`, `orderForGap`, `trimToFund`): **one line per (dish,
+>   group)** — `{source:"dedicated", intendedFor: group ids, qty: q}`; the coverage metric already credits
+>   q·unit ÷ n to each member, so `coverage-core.ts` is unchanged. Candidates in Tom's order: dishes
+>   ALREADY on the set menu the group eats safely (venue ranking via `priorityFor` → more substantial →
+>   name), then off-menu "Include in set menu" safe dishes (ranking → name); allocation-governed keys never.
+>   Plate size q = just enough to close the group's gap (`ceil(gap·n ÷ unit)`), at most **one portion per
+>   member per dish** in the first pass; a second pass allows repeats up to `MAX_SAME_DISH_PER_GUEST = 3`
+>   only after every suitable dish has been used once (Phase I's cap, now measured as qty). **"Only
+>   enough"**: when the gap is smaller than one portion of every ranked dish, the closest-fitting dish wins
+>   (least overshoot; on-menu still before off-menu) — otherwise a $24 main for a $2 gap starves the next
+>   group. Groups are funded **round-robin, cheapest gap first** (a tight budget then covers the most
+>   guests). Funding: budget headroom first; else `trimToFund` reduces dishes the group can't eat, priciest
+>   first, one portion at a time — never a locked line, never a set-menu dish below 1× (Phase J), never a
+>   dish any still-short group eats, never a trim that pushes a covered guest under (`breaksCoverage`).
+>   Still short ⇒ `bestEffort` at assembly (unchanged) and the guest keeps any modifications they need.
+> - **Whole-party top-up** (`topUpTable`): anyone still under threshold (usually the standard table via the
+>   phantom) gets more of the set menu — capped shared bumps (`onMenuSharedBumpActions`, tier 0), else an
+>   off-menu shared add (tier 1/2), else, only when nothing fits outright, a swap-funded on-menu bump
+>   (`swapBumpActions`: trim a dish no short dietary guest eats to serve one more of another). Then a
+>   **leftover fill** (`fillTable` at the ordinary party caps) spends any remaining budget on the set menu —
+>   the customer pays for G heads, a menu never ends gratuitously under target (Sam, Phase H).
+> - **Invariants kept:** hard budget cap; every guest (dietary + non-dietary + phantom) held to their
+>   threshold or explicitly best-effort; no set-menu dish below 1×; ≤3 of one dish per guest; Phase K locked
+>   lines untouched; deterministic. **Dropped as dead:** `MAX_DEDICATED_PER_GUEST`, `minShared`,
+>   `onMenuSafeExtraActions`, `onMenuSwapBumpActions`, `dedCountFor(Dish)`, the Phase 1/2 loops.
+> - **Presentation:** unchanged code — a group line of an on-menu dish nests under the base dish as
+>   "extra for <names>" with its qty; an off-menu group line sits under "Dietary-specific dishes"; docket and
+>   waiter card read "ONLY for <names>". The editor's manual "＋ just for them" still adds a personal line.
+> - **Known limitation:** a guest who ends `needsMods` eats modified dishes whose quantity was reduced by
+>   their share (best-effort cases only; documented, not fixed).
+> - **Verified — `execution/set_menu_battery.py --strict-grouping` (95 scenarios) vs the Phase K baseline:**
+>   all invariants pass incl. `--submit-all` (every seat a real row); **duplicate dedicated lines 52 → 0**;
+>   **off-menu adds 67 → 0**; guests needing review **46 → 26**; **20 guests moved from best-effort to
+>   covered, 0 the other way**; no scenario under 90% of budget; worst single dish still 28% of budget;
+>   no-dietary parties identical. Tight cases by hand: Kisa 58/8 (2 GF + 1 dairy) → no per-guest clones,
+>   `Yufka ×2 ONLY g1,g2`, dairy guest fed with one Falafel + one Tursu line; Ombra 49/6 gluten+garlic →
+>   `Rocket ×2 ONLY g1` + one Fish crudo, 1.00, $294/$294; Mr Go's 44/8 two gluten → one
+>   `Fried Rice ×2 ONLY g1,g2`, both 0.97. Iteration lessons (kept for next time): biggest-shortfall-first
+>   plus top-ranked-first starved the second guest at a 5-top ($19.50 headroom, every dish at its 1× floor);
+>   cheapest-gap-first rounds + closest-fit sizing fixed it with both guests covered.
 
 **Coverage lives in `src/lib/coverage-core.ts` (pure, shared).** The scoring formula
 (`eatersForShared`, `coverageNumerator`, `coverageScore`, `coverageMap`, `canEatShared`, the
@@ -462,7 +522,7 @@ A future improvement is extracting the shared copies into a package; out of scop
 **The regression battery (run after ANY builder change):**
 ```
 cd set-menu-builder && npm run build && npm run start          # production build on :3000
-python execution/set_menu_battery.py --compare execution/battery_baseline_phase_k.json
+python execution/set_menu_battery.py --strict-grouping --compare execution/battery_baseline_phase_l.json
 ```
 `execution/set_menu_battery.py` hits `/api/build` with **95 scenarios** (3 venues × {none, 1 gluten,
 2 gluten + 1 dairy, gluten+garlic & dairy+eggs, vegan, 7-allergy} × parties {3,5,6,8,10}, plus the
@@ -608,6 +668,13 @@ the Phase L target (52 such duplicates exist in the Phase K baseline). Exit 1 on
   `setmenu.ai-lergy.co.nz` host still resolves (301). No open deployment items.
 - **No unresolved Dish Keys (2026-08-06).** The last gap (Mr Go's `KUNG PAO CAULIFLOWER V2.0`) was fixed
   in the sheet by Sam — `/api/health` reads `ok: true, totalUnresolved: 0` across all three venues.
+- **v2 Phase L delivered — share-accounting optimiser (Tom round 5b, 2026-09-05).** Dietary guests are
+  grouped by identical requirements; unsuitable dishes are portioned for the guests who eat them (eater-aware
+  caps); each group is fed with ONE line per dish from a budget reserve, ranked on-menu first and sized to
+  "only enough"; whole-party top-up + leftover fill keep everyone at threshold and the budget spent. Replaces
+  the per-guest greedy loops (no more "mini menu per guest" / duplicate ONLY-for lines). See §3 ⚠ Phase L.
+  **Verified** battery: duplicates 52→0, off-menu adds 67→0, review 46→26, 20 guests best-effort→covered, 0
+  regressions, non-dietary identical. Baseline: `execution/battery_baseline_phase_l.json`.
 - **v2 Phase K delivered — Kisa per-guest allocation rules (Tom round 5).** 1 pita / 1 kebab skewer /
   1 borek per guest, scaling exactly with the party; GF guests get a GF yufka in place of their pita
   (dietary always wins — a guest who can't safely eat an allocated dish skips their unit, bread gets the
