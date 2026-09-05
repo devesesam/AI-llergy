@@ -1,3 +1,7 @@
+> **RETIRED 2026-09-05.** The Supabase-backed chef dashboard was never adopted — the chefs preferred editing the
+> Google Sheet directly, which is the sole data source for both apps. The code now lives in
+> `ai-llergy-webapp/_archive/supabase-dashboard/` (excluded from the build). This directive is kept as history only.
+
 # Directive: Dashboard Admin Portal
 
 **Goal**: Provide venue owners and staff with a protected admin portal to manage venues, menus, and menu items. This replaces the manual Google Sheets workflow with a database-driven system.

@@ -1,3 +1,6 @@
+"""RETIRED 2026-09-05 — Supabase is no longer used (chefs edit the Google Sheet directly).
+Kept for reference only; see ai-llergy-webapp/_archive/README.md.
+"""
 """
 Migration script: Google Sheet → Supabase menu_items
 

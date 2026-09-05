@@ -4,9 +4,10 @@
 exact schema they expect, and the failure modes that have repeatedly broken the app when the
 sheet is edited. **Read this before touching the Google Sheet or the menu-loading code.**
 
-> Context: Supabase is **paused** (see [[supabase-paused-gsheet-source]] / `supabase_integration.md`).
+> Context: Supabase is **retired** — its dashboard code was archived 2026-09-05 (`ai-llergy-webapp/_archive/`,
+> `directives/archive/supabase_integration.md`). The Sheet is the sole data source.
 > The public allergen-filtering experience runs entirely off a **public Google Sheet**, not the DB.
-> The `/v/[slug]` venue pages and the dashboard are the only things that still use Supabase.
+> Nothing in the live apps uses Supabase; `/v/[slug]` is a redirect to `/[slug]`.
 
 ## 1. Where the data lives (MULTI-VENUE)
 

@@ -90,6 +90,11 @@ above. No QR codes were ever printed on the old domain.
 
 ### Public venue route: `/[venue]` is canonical — Supabase is NOT used
 
+> **2026-09-05: the Supabase dashboard/auth code was ARCHIVED** to `ai-llergy-webapp/_archive/supabase-dashboard/`
+> (excluded from the build; deps removed). `/dashboard` and `/login` now 404. Its directives are in
+> `directives/archive/`. References below to `/dashboard/**`, `src/lib/supabase/**`, `/api/venues/**`,
+> `middleware.ts`, `supabase/migrations/*` describe history, not the live codebase.
+
 **Decided 2026-07-30: Supabase is not used for anything.** The public allergen experience runs
 entirely off the Google Sheet. Do not add Supabase reads to any public code path.
 

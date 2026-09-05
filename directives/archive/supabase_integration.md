@@ -1,3 +1,7 @@
+> **RETIRED 2026-09-05.** The Supabase-backed chef dashboard was never adopted — the chefs preferred editing the
+> Google Sheet directly, which is the sole data source for both apps. The code now lives in
+> `ai-llergy-webapp/_archive/supabase-dashboard/` (excluded from the build). This directive is kept as history only.
+
 # Directive: Supabase Integration
 
 **Goal**: Document the Supabase setup, database schema, authentication flow, and usage patterns for the AI-llergy dashboard admin portal.

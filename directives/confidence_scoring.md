@@ -5,7 +5,8 @@
 > **⚠️ DORMANT (v4.7)**: The UI **no longer collects severity** — the submit-time
 > slider was removed (see `allergen_management.md` §6). Every selection now arrives
 > as `type: "allergy"` (`SeverityModal.tsx` `DEFAULT_TYPE`). This system only runs
-> for Supabase venues that have `allergen_confidence` scores (currently paused), so
+> for Supabase venues that have `allergen_confidence` scores (Supabase is retired — archived 2026-09-05,
+> see `archive/supabase_integration.md`; the confidence path is effectively unused), so
 > in practice it is inactive; if reactivated it would apply the single `"allergy"`
 > threshold (>80%) to everything until per-selection severity collection is
 > reintroduced. The code below is retained and accurate for that future case.
