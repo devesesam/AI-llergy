@@ -258,9 +258,16 @@ If local matching fails, Claude Haiku interprets the text:
 - Handles complex phrases ("tree nuts" → pistachio, walnut, almond)
 - Returns matched allergen IDs
 
-**Model**: `claude-3-5-haiku-20241022`
-**Max tokens**: 100
-**Temperature**: 0 (deterministic)
+**Model**: `claude-haiku-5-5` (effort `low`)
+**Max tokens**: 1024 — Haiku 5.5 thinks by default and thinking counts toward `max_tokens`; 100 truncates
+**Output**: structured output `{ "allergens": [...] }`, the array enum-restricted to the known allergen IDs
+
+> **2026-10-16:** moved off `claude-3-5-haiku-20241022`, which Anthropic retired on 2026-02-19. From then
+> until this fix, both LLM calls failed silently (interpret returned nothing; the custom-tag filter
+> marked every dish "AI analysis unavailable"). Haiku 5.5 rejects `temperature`/`top_p`/`top_k` and
+> assistant prefill, and a response can begin with `thinking` blocks — read the text block by
+> `type`, never `content[0]`. A `stop_reason` other than `end_turn` (refusal, truncation) is treated
+> as a failure. SDK `@anthropic-ai/sdk` ^0.131.0.
 
 ### Unmatched Text
 
@@ -703,7 +710,7 @@ function fallbackToCaution(items, restrictions) {
 | Factor | Impact |
 |--------|--------|
 | Batch size | 20 items/call balances throughput vs latency |
-| Model | Haiku for speed (~500-1000ms per batch) |
+| Model | `claude-haiku-5-5`, effort `medium`, `max_tokens` 16000, structured output `{ "items": [...] }` (see the 2026-10-16 note in §5) |
 | Pre-filtering | Reduces AI workload significantly |
 | Caching | Menu is cached; AI results are NOT cached |
 

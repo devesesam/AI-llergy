@@ -278,7 +278,7 @@ searchSynonyms("tree nuts")
 }
 ```
 
-**Uses:** Claude Haiku (`claude-3-5-haiku-20241022`) for interpretation. Requires `ANTHROPIC_API_KEY` in `.env`.
+**Uses:** Claude Haiku 5.5 (`claude-haiku-5-5`) for interpretation — see `backend_menu_filter.md` §5 for the request settings. Requires `ANTHROPIC_API_KEY` in `.env`.
 
 ## 7. Submit Flow
 
