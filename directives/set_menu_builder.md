@@ -522,17 +522,20 @@ A future improvement is extracting the shared copies into a package; out of scop
 **The regression battery (run after ANY builder change):**
 ```
 cd set-menu-builder && npm run build && npm run start          # production build on :3000
-python execution/set_menu_battery.py --strict-grouping --compare execution/battery_baseline_phase_l.json
+python execution/set_menu_battery.py --strict-grouping --compare execution/battery_baseline_pre_m.json
 ```
-`execution/set_menu_battery.py` hits `/api/build` with **95 scenarios** (3 venues × {none, 1 gluten,
+`execution/set_menu_battery.py` hits `/api/build` with **141 scenarios**: the original 95 (3 venues × {none, 1 gluten,
 2 gluten + 1 dairy, gluten+garlic & dairy+eggs, vegan, 7-allergy} × parties {3,5,6,8,10}, plus the
-Kisa allocation cases) and asserts the invariants: never over budget (except the documented
+Kisa allocation cases) and 46 large realistic parties (12–40 guests, `--only-large` / `--skip-large`), and asserts the invariants: never over budget (except the documented
 party-<4 "consider a smaller tier" case), no tier dish below 1×, every guest `met || bestEffort`,
-≤3 of one dish per guest, integer allocation qtys, determinism (each scenario run twice).
+≤3 portions of one dish per guest (a shared dedicated line counts qty ÷ guests on it), integer allocation qtys, determinism (each scenario run twice).
 `--compare <snapshot>` prints a readable per-scenario delta (dishes added/removed, guest score
 changes) against the last accepted baseline; `--snapshot <file>` records a new baseline once a
 change is accepted (commit it as `execution/battery_baseline_<phase>.json`); `--base <url>` checks
-production; `--strict-grouping` additionally fails on duplicate (dish, guest-group) dedicated lines —
+production; `battery_baseline_pre_m.json` (production, Phase L engine, 2026-10-23) is the current
+baseline — it has the large parties and the 7-allergy fix (the old invalid `nuts` id is now
+`peanuts`+`treenuts`); comparing against the older phase_k/phase_l baselines needs `--skip-large
+--legacy-nuts`. `--strict-grouping` additionally fails on duplicate (dish, guest-group) dedicated lines —
 the Phase L target (52 such duplicates exist in the Phase K baseline). Exit 1 on any failure.
 
 - Manual spot checks (historic):
