@@ -217,10 +217,11 @@ def check_invariants(name: str, res: dict, strict_grouping: bool, party: int) ->
     b = res["budget"]
     if b["spreadCost"] > b["totalBudget"] + 1e-6:
         # Documented exception: a party smaller than the tier's design size (4) keeps the full
-        # base spread even when it costs more than G x perHead — the app warns "consider a
-        # smaller tier" instead of stripping dishes. Anything else over budget is a failure.
+        # base spread even when it costs more than G x perHead — the app warns "Consider a
+        # smaller menu" ("smaller tier" before 2026-10-23) instead of stripping dishes.
+        # Anything else over budget is a failure.
         small_party = res["tier"]["designedFor"] > party and any(
-            "smaller tier" in w for w in res["warnings"]
+            "smaller menu" in w or "smaller tier" in w for w in res["warnings"]
         )
         if not small_party:
             fails.append(f"over budget: {b['spreadCost']} > {b['totalBudget']}")

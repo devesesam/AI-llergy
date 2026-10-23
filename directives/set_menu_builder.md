@@ -507,12 +507,12 @@ slots[{intendedFor?, standardQty, qty, reasons[{kind, delta, guestIds, note}]}]}
     or name + chips that say what the guest avoids: Vegetarian · Vegan · Halal / No gluten · No dairy ·
     No nuts (= peanuts + tree nuts) · No eggs · No shellfish / More…). Labels: number → "Seat 4", blank →
     "Guest A". **Only dietary guests are sent** (a card with no chips isn't); the engine models the other
-    seats as `__party__`. Button: "Build order — 20 guests, 5 dietary"; "Back to order →" when the inputs
+    seats as `__party__`. Button: "Build order: 20 guests, 5 dietary"; "Back to order →" when the inputs
     are unchanged; rebuilding after edits confirms first.
   - *Order (read-only by default)* — top bar "← Guests" / "Table 12 · 20 guests · $68 menu" / "New
     order" (confirm). **Dietaries card**: one plain-English line per dietary guest, live from the edited
     menu via `coverage-core` (+ the `__party__` stand-in, `tableSize = max(guestCount, guests)`; single
-    0.85 boundary): "✓ Plenty to eat" or "Light on food — check with chef" + "Can eat here: …" + "Find a
+    0.85 boundary): "✓ Plenty to eat" or "Light on food. Check with the chef." + "Can eat here: …" (a dish eaten both ways reads "Falafel (shared + own plate)") + "Find a
     dish for Dan" (guest panel: Can eat / With a change, "＋ Dan's plate" / "＋ Table"; Ask the kitchen and
     Not suitable collapsed). "Everyone else (N)" appears only when the rest of the table is light.
     **Order card**: one merged row per dish (key `lineKey`), in course order (all courses blank → today's
@@ -521,7 +521,7 @@ slots[{intendedFor?, standardQty, qty, reasons[{kind, delta, guestIds, note}]}]}
     guest (= 8½ dishes)". **Changed for dietaries** callout from `result.changes` (3 shown, "Show all").
     **Suggestion chips** from `result.suggestions`, re-checked against the live remaining budget, never
     auto-added. **One budget line** (On / Under / Over budget, en-NZ money). Sticky bar: [Adjust order]
-    [Show kitchen →].
+    [Show kitchen →]. **Copy rule (Sam, 2026-10-23): no em/en dashes in user-facing text**; use colons, full stops, commas or brackets (e.g. "On budget: $1,352 of $1,360", "DIETARIES (5)", "−2 Pita: Ben and Cat get yufka instead"). Minus signs and arrows are fine.
   - *Adjust mode* — a stepper per row (acts on the shared line; locked "1 per guest" rows have none); tap
     to expand into "To share", one stepper per plate, "Extra dishes" on allocation rows, and "＋ Plate
     for:" chips ("Dan (modified)"). Edits go through `changeLine(menu, ref, delta)` — by line identity,

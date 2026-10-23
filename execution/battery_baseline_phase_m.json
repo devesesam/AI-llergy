@@ -334,7 +334,7 @@
   "spread": 195,
   "suggestions": [],
   "warnings": [
-   "The base 58 menu (designed for 4) costs more than the target spend for 3 guests \u2014 consider a smaller tier."
+   "The $58 menu is designed for 4 and costs more than the budget for 3 guests. Consider a smaller menu."
   ]
  },
  "kisa 58 | 1 gluten /5": {
@@ -2275,7 +2275,7 @@
   "spread": 574.5,
   "suggestions": [],
   "warnings": [
-   "Guest 1: no safe replacement for Pita \u2014 their pita is left off this menu."
+   "Guest 1: no safe replacement for Pita, so their pita is left off."
   ]
  },
  "kisa 58 | 7-allergy /3": {
@@ -2432,8 +2432,8 @@
   "spread": 178,
   "suggestions": [],
   "warnings": [
-   "Guest 1: no safe replacement for Pita \u2014 their pita is left off this menu.",
-   "The base 58 menu (designed for 4) costs more than the target spend for 3 guests \u2014 consider a smaller tier."
+   "Guest 1: no safe replacement for Pita, so their pita is left off.",
+   "The $58 menu is designed for 4 and costs more than the budget for 3 guests. Consider a smaller menu."
   ]
  },
  "kisa 58 | 7-allergy /5": {
@@ -2653,7 +2653,7 @@
   "spread": 283,
   "suggestions": [],
   "warnings": [
-   "Guest 1: no safe replacement for Pita \u2014 their pita is left off this menu."
+   "Guest 1: no safe replacement for Pita, so their pita is left off."
   ]
  },
  "kisa 58 | 7-allergy /6": {
@@ -2906,7 +2906,7 @@
    ]
   ],
   "warnings": [
-   "Guest 1: no safe replacement for Pita \u2014 their pita is left off this menu."
+   "Guest 1: no safe replacement for Pita, so their pita is left off."
   ]
  },
  "kisa 58 | 7-allergy /8": {
@@ -3127,7 +3127,7 @@
   "spread": 463.5,
   "suggestions": [],
   "warnings": [
-   "Guest 1: no safe replacement for Pita \u2014 their pita is left off this menu."
+   "Guest 1: no safe replacement for Pita, so their pita is left off."
   ]
  },
  "kisa 58 | gl+garlic & dairy+eggs /10": {
@@ -5071,7 +5071,7 @@
   "spread": 281,
   "suggestions": [],
   "warnings": [
-   "Guest 1: no safe replacement for Pita \u2014 their pita is left off this menu."
+   "Guest 1: no safe replacement for Pita, so their pita is left off."
   ]
  },
  "kisa 58 | k: vegetarian /5": {
@@ -5448,7 +5448,7 @@
   "spread": 199.5,
   "suggestions": [],
   "warnings": [
-   "The base 58 menu (designed for 4) costs more than the target spend for 3 guests \u2014 consider a smaller tier."
+   "The $58 menu is designed for 4 and costs more than the budget for 3 guests. Consider a smaller menu."
   ]
  },
  "kisa 58 | none /5": {
@@ -6078,7 +6078,7 @@
   "spread": 181.5,
   "suggestions": [],
   "warnings": [
-   "The base 58 menu (designed for 4) costs more than the target spend for 3 guests \u2014 consider a smaller tier."
+   "The $58 menu is designed for 4 and costs more than the budget for 3 guests. Consider a smaller menu."
   ]
  },
  "kisa 58 | vegan /5": {
@@ -9099,7 +9099,7 @@
   "spread": 2659,
   "suggestions": [],
   "warnings": [
-   "Guest 9: no safe replacement for Pita \u2014 their pita is left off this menu."
+   "Guest 9: no safe replacement for Pita, so their pita is left off."
   ]
  },
  "kisa 68 | L: mix20 /16": {
@@ -12616,7 +12616,7 @@
   "spread": 166.5,
   "suggestions": [],
   "warnings": [
-   "The base 44 menu (designed for 4) costs more than the target spend for 3 guests \u2014 consider a smaller tier."
+   "The $44 menu is designed for 4 and costs more than the budget for 3 guests. Consider a smaller menu."
   ]
  },
  "mr-gos 44 | 1 gluten /5": {
@@ -13339,7 +13339,7 @@
   "spread": 166.5,
   "suggestions": [],
   "warnings": [
-   "The base 44 menu (designed for 4) costs more than the target spend for 3 guests \u2014 consider a smaller tier."
+   "The $44 menu is designed for 4 and costs more than the budget for 3 guests. Consider a smaller menu."
   ]
  },
  "mr-gos 44 | 2 gluten + 1 dairy /5": {
@@ -14109,7 +14109,7 @@
   "spread": 166.5,
   "suggestions": [],
   "warnings": [
-   "The base 44 menu (designed for 4) costs more than the target spend for 3 guests \u2014 consider a smaller tier."
+   "The $44 menu is designed for 4 and costs more than the budget for 3 guests. Consider a smaller menu."
   ]
  },
  "mr-gos 44 | 7-allergy /5": {
@@ -17800,7 +17800,7 @@
   "spread": 166.5,
   "suggestions": [],
   "warnings": [
-   "The base 44 menu (designed for 4) costs more than the target spend for 3 guests \u2014 consider a smaller tier."
+   "The $44 menu is designed for 4 and costs more than the budget for 3 guests. Consider a smaller menu."
   ]
  },
  "mr-gos 44 | gl+garlic & dairy+eggs /5": {
@@ -18623,7 +18623,7 @@
   "spread": 166.5,
   "suggestions": [],
   "warnings": [
-   "The base 44 menu (designed for 4) costs more than the target spend for 3 guests \u2014 consider a smaller tier."
+   "The $44 menu is designed for 4 and costs more than the budget for 3 guests. Consider a smaller menu."
   ]
  },
  "mr-gos 44 | none /5": {
@@ -19195,7 +19195,7 @@
   "spread": 166.5,
   "suggestions": [],
   "warnings": [
-   "The base 44 menu (designed for 4) costs more than the target spend for 3 guests \u2014 consider a smaller tier."
+   "The $44 menu is designed for 4 and costs more than the budget for 3 guests. Consider a smaller menu."
   ]
  },
  "mr-gos 44 | vegan /5": {
@@ -20544,7 +20544,7 @@
   "spread": 179,
   "suggestions": [],
   "warnings": [
-   "The base 49 menu (designed for 4) costs more than the target spend for 3 guests \u2014 consider a smaller tier."
+   "The $49 menu is designed for 4 and costs more than the budget for 3 guests. Consider a smaller menu."
   ]
  },
  "ombra 49 | 1 gluten /5": {
@@ -21362,7 +21362,7 @@
   "spread": 179,
   "suggestions": [],
   "warnings": [
-   "The base 49 menu (designed for 4) costs more than the target spend for 3 guests \u2014 consider a smaller tier."
+   "The $49 menu is designed for 4 and costs more than the budget for 3 guests. Consider a smaller menu."
   ]
  },
  "ombra 49 | 2 gluten + 1 dairy /5": {
@@ -22343,7 +22343,7 @@
   "spread": 179,
   "suggestions": [],
   "warnings": [
-   "The base 49 menu (designed for 4) costs more than the target spend for 3 guests \u2014 consider a smaller tier."
+   "The $49 menu is designed for 4 and costs more than the budget for 3 guests. Consider a smaller menu."
   ]
  },
  "ombra 49 | 7-allergy /5": {
@@ -26327,7 +26327,7 @@
   "spread": 179,
   "suggestions": [],
   "warnings": [
-   "The base 49 menu (designed for 4) costs more than the target spend for 3 guests \u2014 consider a smaller tier."
+   "The $49 menu is designed for 4 and costs more than the budget for 3 guests. Consider a smaller menu."
   ]
  },
  "ombra 49 | gl+garlic & dairy+eggs /5": {
@@ -27397,7 +27397,7 @@
   "spread": 179,
   "suggestions": [],
   "warnings": [
-   "The base 49 menu (designed for 4) costs more than the target spend for 3 guests \u2014 consider a smaller tier."
+   "The $49 menu is designed for 4 and costs more than the budget for 3 guests. Consider a smaller menu."
   ]
  },
  "ombra 49 | none /5": {
@@ -28260,7 +28260,7 @@
   "spread": 179,
   "suggestions": [],
   "warnings": [
-   "The base 49 menu (designed for 4) costs more than the target spend for 3 guests \u2014 consider a smaller tier."
+   "The $49 menu is designed for 4 and costs more than the budget for 3 guests. Consider a smaller menu."
   ]
  },
  "ombra 49 | vegan /5": {
