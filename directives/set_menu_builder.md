@@ -522,6 +522,25 @@ slots[{intendedFor?, standardQty, qty, reasons[{kind, delta, guestIds, note}]}]}
     **Suggestion chips** from `result.suggestions`, re-checked against the live remaining budget, never
     auto-added. **One budget line** (On / Under / Over budget, en-NZ money). Sticky bar: [Adjust order]
     [Show kitchen →]. **Copy rule (Sam, 2026-10-23): no em/en dashes in user-facing text**; use colons, full stops, commas or brackets (e.g. "On budget: $1,352 of $1,360", "DIETARIES (5)", "−2 Pita: Ben and Cat get yufka instead"). Minus signs and arrows are fine.
+  - *QA pass (2026-10-23), presentation only; engine, coverage and battery unchanged:*
+    - **Table extras.** A plate for preference-only guests (vegetarian / vegan / halal), with no
+      modification, of a dish that is also shared on the table, is shown as a table extra:
+      kitchen "incl. 1 extra for Ava (vegan)" (no [PLATE] tag; it goes out with the shared plates),
+      waiter "Place 1 near Ava", dietary block "extra on table: …", changes "extra for Ava (vegan)".
+      Allergy plates (cross-contact) and every modified plate stay real [PLATE]s. `isTableExtra` on
+      the order model (`order-view.ts`); preference ids in `diet-labels.ts` (`PREFERENCE_IDS`,
+      mirrors `build-set-menu.ts`). The coverage maths still credits the extra to the guest; the
+      waiter placing it near them is what makes that true. Default chosen for Tom (Sam's call).
+    - **Kitchen names** (`shortName` / `splitName`): drop a version tag ("V2.0"), upper-case short
+      quoted tokens ("'XO'"), cut the description after the first dash outside brackets when the
+      dash is spaced or the name has 2+ bare hyphens ("Arancini-cacio pepe- cheese spuma" →
+      "Arancini"; the cut text shows muted on the order screen only). Never cuts at commas
+      ("Blue Vein, …, Dill Pizzette" is a pizzette). Display only; joins use dishKey. Tested over all
+      110 live names. A name shortened in the sheet passes through unchanged.
+    - **Courses:** two groups, "To start" then "Mains & sides" (groups are ordered by first
+      appearance in the tab, so finer labels would put Kisa's Potato "Sides" before its mains).
+      Paste-ready values were prepared for Sam from the live tabs.
+    - Status line "Ava (vegan): ✓ Plenty to eat"; "More…" allergens ordered by how common they are.
   - *Adjust mode* — a stepper per row (acts on the shared line; locked "1 per guest" rows have none); tap
     to expand into "To share", one stepper per plate, "Extra dishes" on allocation rows, and "＋ Plate
     for:" chips ("Dan (modified)"). Edits go through `changeLine(menu, ref, delta)` — by line identity,
@@ -594,6 +613,12 @@ baseline — it has the large parties and the 7-allergy fix (the old invalid `nu
 `peanuts`+`treenuts`); comparing against the older phase_k/phase_l baselines needs `--skip-large
 --legacy-nuts`. `--strict-grouping` additionally fails on duplicate (dish, guest-group) dedicated lines —
 the Phase L target (52 such duplicates exist in the Phase K baseline). Exit 1 on any failure.
+
+**First real service checklist (iPad):** tap targets with wet/gloved hands; glare at the pass on the
+kitchen screen; the walk to the kitchen with the screen awake (wake lock); refresh mid-order (order
+returns); Wi-Fi drop then rebuild ("Can't reach the server" message, then retry); "New order"
+between tables and "Reopen last order". Browser checks (WebKit with the `iPad (gen 7)` device
+profiles, both orientations, plus Chrome) live in the session scratchpad and are not committed.
 
 - Manual spot checks (historic):
 - `cd set-menu-builder && npm run build` passes; `npm run start` then `POST /api/build`:
@@ -728,6 +753,13 @@ the Phase L target (52 such duplicates exist in the Phase K baseline). Exit 1 on
   `setmenu.ai-lergy.co.nz` host still resolves (301). No open deployment items.
 - **No unresolved Dish Keys (2026-08-06).** The last gap (Mr Go's `KUNG PAO CAULIFLOWER V2.0`) was fixed
   in the sheet by Sam — `/api/health` reads `ok: true, totalUnresolved: 0` across all three venues.
+- **QA pass after Phase M (2026-10-23).** Table extras for preference diets, kitchen names, course
+  groups (sheet values to paste), status/allergen-list polish; all presentation (battery: no
+  differences). Accepted, documented: two small-party guests newly "Needs review" since Phase M
+  (Ombra 2 gluten + 1 dairy /5, from the Arancini base-qty floor; Mr Go's gl+garlic & dairy+eggs /5).
+  Set menus are sold for 12+, where neither occurs. Open with Tom: real problem bookings, send to
+  kitchen (deferred; the iPad is walked over), chef rankings (Mr Go's `Set menu priority` has a full
+  1 to 9 ranking that may be real; Kisa/Ombra have a few values that may be placeholders).
 - **v2 Phase M (engine) delivered — standard menu first + explained changes (Tom: "weird suggestions",
   2026-10-23).** See §3 ⚠ Phase M. Release 1 (same day, live): kitchen docket + waiter card now always print a
   plate's MODIFY instruction (a "＋ just for them" add from "With a modification" printed none — safety fix);
