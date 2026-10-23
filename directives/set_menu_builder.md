@@ -163,7 +163,7 @@ keep the table, flag `coverage.bestEffort` + honest recommendation. Never fabric
 (**tier → score → kind (bump/add/swap/ded) → guests-helped → net cost → name**); no reliance on
 Map/Set iteration order. Same inputs → same output.
 
-> ### Optimiser rule stack — Phase L is the authority; F → K are history (still-true invariants noted)
+> ### Optimiser rule stack — Phase M is the authority on orchestration; L is the authority on feeding; F → K are history (still-true invariants noted)
 > Each block below layers on the previous one; where they conflict, the **later** phase wins. The
 > **current** behaviour = F + G + H + I + **J's overrides** (J reverses Phase H's over-budget allowance
 > and Phase H's blanket tier protection). Phase J is the authority on budget and dish-choice rules.
@@ -273,7 +273,7 @@ Map/Set iteration order. Same inputs → same output.
 >   customer's stated budget (`budgetCeiling = totalBudget`; Step B unchanged). `optimise` still returns a
 >   truthful `overBudget` (now ~always false unless the base tier itself exceeds budget for a small party).
 > - **Dietary coverage is funded by REALLOCATION, floored at 1×.** Phase H's blanket tier protection is
->   replaced by **`MIN_TIER_DISH_QTY = 1`**: a base set-menu dish MAY be reduced to pay for dietary
+>   replaced by **`MIN_TIER_DISH_QTY = 1`** (Phase M: now `tierFloor(w)` = max(1, the dish's base qty), so e.g. Ombra Arancini never drops below 2): a base set-menu dish MAY be reduced to pay for dietary
 >   dishes but **never below 1 portion**, so no set-menu dish ever drops off the draft (Tom's "don't drop
 >   the short rib"). Applied at all three `withReduced` sites.
 > - **Per-dietary-category priorities, applied to ON-MENU increases.** `MenuItem.priorityByAllergen`
@@ -352,7 +352,7 @@ Map/Set iteration order. Same inputs → same output.
 >   $463.50/$464, all covered); tiers 68/78 (incl. wapiti); determinism; **mr-gos + ombra byte-identical
 >   to pre-Phase-K live production** (venues without rules are untouched by construction).
 
-> **⚠ Phase L (CURRENT — THE AUTHORITY on how dietary guests are fed) — share accounting, not per-guest mini menus.**
+> **⚠ Phase L (feeding logic still in force; its Step-B reserve and final leftover fill are SUPERSEDED by Phase M) — share accounting, not per-guest mini menus.**
 > Tom's round-5 feedback (2026-09-05): "the app is effectively adding a separate mini menu for every dietary
 > guest. If something already on the shared menu is suitable, they should eat from it; reduce their share
 > of anything unsuitable and add only enough of the highest-ranked suitable dishes to make up what they're
@@ -412,6 +412,52 @@ Map/Set iteration order. Same inputs → same output.
 >   plus top-ranked-first starved the second guest at a 5-top ($19.50 headroom, every dish at its 1× floor);
 >   cheapest-gap-first rounds + closest-fit sizing fixed it with both guests covered.
 
+> **⚠ Phase M (CURRENT — THE AUTHORITY on orchestration) — standard menu first, then explained changes (2026-10-23).**
+> Tom: staff "are getting thrown off by some weird suggestions"; the last 10% has an "exponential" cost.
+> **Who actually uses the tool (Sam):** a **waiter on a venue iPad, at the table, while taking the order**;
+> the iPad is walked to the kitchen. So the first draft must read like a chef wrote it, with no edits. The
+> investigation (live API + battery) found the weirdness was mostly *unpredictability*: adding one dietary
+> guest reshuffled unrelated dishes (Kisa 58/5 + one GF guest: a $4 yufka swapped a Potato for a 2nd Tursu,
+> via `reserveFor` lowering the fill ceiling); `trimToFund` cut a $31 Gnocchi to cover a $1 gap (priciest-first);
+> the final leftover fill spent the remainder on cheap sides; Arancini fell below its base of 2.
+> - **Pipeline** (`buildSetMenu`): build the **standard menu** with exactly the no-dietary code path (deep
+>   clone → Step B `fillTable` at party caps → `topUpTable` with the `__party__` stand-in), then on a clone:
+>   (a) Kisa allocation adjustments (moved after the standard build), (b) the party-<4 warning,
+>   (c) **`applyShareReductions`** (shared qty → max(eater-aware cap, `tierFloor`) — only dishes some group
+>   can't eat; Tom's "reduce their share"), (d) **`repairBudget`** (the yufka swap can add $0.50 to an
+>   exactly-at-budget standard), (e) `optimise` = `fundGroups` → `topUpTable`, then a **restore pass** (if a
+>   non-dietary guest / the phantom is short, top them up again at party caps; fallback: restore the table
+>   first, then fund, keeping whichever leaves fewer short). **Deleted:** `reserveFor` and the final leftover
+>   `fillTable`. `swapBumpActions` never reduces a dish every dietary group can eat.
+> - **`trimToFund` = smallest sufficient cut:** the cheapest single unit that covers the remaining gap first;
+>   otherwise priciest-first to make progress (all old guards kept).
+> - **Floor = base qty** (`baseQty` on tier lines, `tierFloor`).
+> - **Earmark fallback** (`earmarkFor`, switch `EARMARK_FALLBACK`): when an on-menu dish can't be funded, move
+>   portions of it from the shared line onto the group's plate at zero cost (guarded by `breaksCoverage` and the
+>   all-eat rule). Measured: review 36 → 29 (baseline 27), off-menu adds 1 → 0. Kept.
+> - **Leftover budget is SUGGESTED, never auto-added (Sam).** `suggestAdditions` returns ≤2 alternatives
+>   (unlocked shared lines below their eater-aware cap that fit the headroom; sort `priorityFor` → unit price
+>   desc → name). Always empty for no-dietary parties. This reverses Phase H's "never under target" fill.
+> - **Reason tracking** (pure `src/lib/menu-diff.ts`: `slotOf`, `qtyBySlot`, `recordDiff`, `buildChanges`):
+>   every committed mutation logs `{key, slot, delta, kind, guestIds}` (kinds: allocation / share / fund /
+>   plated / earmark / topup); `buildChanges` nets them per dish+slot (churn hidden) into `changes[]`, each with
+>   a short note ("plated for Ava (vegan)", "Ava and Ben don't eat it", "to fund Ava's dishes", "Ben gets yufka
+>   instead"). Labels: name else "Guest N"; allergens read "egg-free", "tree nut-free" (from the sheet column).
+> - **Flagging:** any guest under threshold is now `bestEffort` (non-dietary too); seats not sent as rows are
+>   reported in `optimiser.unsubmitted` with a "Needs review" warning, and `allGuestsCovered` reflects them.
+> - **Invariants kept:** hard budget; every guest met or flagged; no tier dish below `tierFloor`; ≤3 portions
+>   of a dish per guest; Kisa locked lines only change via allocation; deterministic; **no-dietary parties
+>   byte-identical to Phase L** (also checked against 150 production builds).
+> - **Verified** (`--strict-grouping`, also `--submit-all`, 147 scenarios incl. 12–40-guest parties): all
+>   invariants pass; 80 dietary scenarios changed, 0 no-dietary; **all-eat dishes cut below standard 18 → 0**;
+>   off-menu adds 0; guests needing review 27 → 29 (mr-gos gl+garlic&dairy+eggs /5 and ombra 2gl+1d /5 — the
+>   latter from the Arancini floor); 37 suggestions; 2 scenarios under 90% (7-allergy /5); ≤ 30 ms per build at
+>   40 guests. Examples: Kisa 58/5 + GF = exactly the standard menu + yufka swap; Ombra 49/8 + GF trims one
+>   Arancini, not the Gnocchi. Baseline: `execution/battery_baseline_phase_m.json`.
+> - **Presentation is Release 3** (waiter-first iPad UI): one row per dish with the plated split as a note,
+>   a "Changed for dietaries" panel from `changes[]`, suggestion chips. Until then the editor still shows
+>   plate lines separately.
+
 **Coverage lives in `src/lib/coverage-core.ts` (pure, shared).** The scoring formula
 (`eatersForShared`, `coverageNumerator`, `coverageScore`, `coverageMap`, `canEatShared`, the
 `COVERAGE_THRESHOLD = 0.9` / `COVERAGE_THRESHOLD_DIETARY = 0.85` / `DESIGNED_FOR = 4` constants, and
@@ -430,6 +476,11 @@ deduped by `looseKey`, sorted by name — the "add a dish" pool) and per-guest
 **`menuAccess {canEat[], modInstr{}, caution{}, excluded[]}`** (that guest's classification of the
 FULL menu by `looseKey`). `menuAccess.canEat` is the full safe∪modifiable set (incl. unpriced
 dishes) so client coverage matches the server; `excluded` is restricted to catalog dishes.
+**Phase M additions (all additive):** `BuildResult.guestCount`, `standard {sharedMenu, spreadCost}` (the
+no-dietary menu for that party size), `changes: DishChange[]` (`{dishKey, displayName, standardQty, qty,
+slots[{intendedFor?, standardQty, qty, reasons[{kind, delta, guestIds, note}]}]}`), `suggestions[]`
+(`{dishKey, displayName, addQty: 1, unitPrice, price, maxQty, note}`), `optimiser.unsubmitted`, and
+`SharedDish.baseQty` on tier lines (the trim floor).
 
 ---
 
@@ -522,9 +573,9 @@ A future improvement is extracting the shared copies into a package; out of scop
 **The regression battery (run after ANY builder change):**
 ```
 cd set-menu-builder && npm run build && npm run start          # production build on :3000
-python execution/set_menu_battery.py --strict-grouping --compare execution/battery_baseline_pre_m.json
+python execution/set_menu_battery.py --strict-grouping --compare execution/battery_baseline_phase_m.json
 ```
-`execution/set_menu_battery.py` hits `/api/build` with **141 scenarios**: the original 95 (3 venues × {none, 1 gluten,
+`execution/set_menu_battery.py` hits `/api/build` with **147 scenarios** (141 + 6 `t:` regressions from the Phase M review — mr-gos 32/50 and an ombra mixed /6 where non-dietary guests could end silently short): the original 95 (3 venues × {none, 1 gluten,
 2 gluten + 1 dairy, gluten+garlic & dairy+eggs, vegan, 7-allergy} × parties {3,5,6,8,10}, plus the
 Kisa allocation cases) and 46 large realistic parties (12–40 guests, `--only-large` / `--skip-large`), and asserts the invariants: never over budget (except the documented
 party-<4 "consider a smaller tier" case), no tier dish below 1×, every guest `met || bestEffort`,
@@ -532,7 +583,13 @@ party-<4 "consider a smaller tier" case), no tier dish below 1×, every guest `m
 `--compare <snapshot>` prints a readable per-scenario delta (dishes added/removed, guest score
 changes) against the last accepted baseline; `--snapshot <file>` records a new baseline once a
 change is accepted (commit it as `execution/battery_baseline_<phase>.json`); `--base <url>` checks
-production; `battery_baseline_pre_m.json` (production, Phase L engine, 2026-10-23) is the current
+production; `battery_baseline_phase_m.json` is the current baseline (Phase M, 2026-10-23).
+**Phase M checks** (`phase_m_checks`, each skipped when the field is absent): every qty difference from
+`standard` is explained by `changes[]` (and nothing else is); a dish every dietary guest can safely eat never
+totals below its standard qty; suggestions ≤2, fit the budget, on an unlocked shared line under its cap, empty
+for no-dietary; no-dietary ⇒ `changes == []` and menu ≡ standard; no tier line below `baseQty`; unsubmitted
+seats short ⇒ flagged. `--compare` also diffs `changes`, `suggestions` and warnings.
+`battery_baseline_pre_m.json` (production, Phase L engine, 2026-10-23) is the pre-change
 baseline — it has the large parties and the 7-allergy fix (the old invalid `nuts` id is now
 `peanuts`+`treenuts`); comparing against the older phase_k/phase_l baselines needs `--skip-large
 --legacy-nuts`. `--strict-grouping` additionally fails on duplicate (dish, guest-group) dedicated lines —
@@ -671,6 +728,10 @@ the Phase L target (52 such duplicates exist in the Phase K baseline). Exit 1 on
   `setmenu.ai-lergy.co.nz` host still resolves (301). No open deployment items.
 - **No unresolved Dish Keys (2026-08-06).** The last gap (Mr Go's `KUNG PAO CAULIFLOWER V2.0`) was fixed
   in the sheet by Sam — `/api/health` reads `ok: true, totalUnresolved: 0` across all three venues.
+- **v2 Phase M (engine) delivered — standard menu first + explained changes (Tom: "weird suggestions",
+  2026-10-23).** See §3 ⚠ Phase M. Release 1 (same day, live): kitchen docket + waiter card now always print a
+  plate's MODIFY instruction (a "＋ just for them" add from "With a modification" printed none — safety fix);
+  menu adds never bump Kisa locked lines; clearer network errors. Release 3 (waiter-first iPad UI) next.
 - **v2 Phase L delivered — share-accounting optimiser (Tom round 5b, 2026-09-05).** Dietary guests are
   grouped by identical requirements; unsuitable dishes are portioned for the guests who eat them (eater-aware
   caps); each group is fed with ONE line per dish from a budget reserve, ranked on-menu first and sized to
