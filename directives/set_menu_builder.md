@@ -494,53 +494,53 @@ slots[{intendedFor?, standardQty, qty, reasons[{kind, delta, guestIds, note}]}]}
 - **`GET /api/health`** — per-venue data diagnostics: source (sheet/bundled), per-tier
   count/total/per-person, and **unresolvedDishes** (drive to zero before launch). `ok:true`
   when zero unresolved.
-- **Screens**: `/` venue picker → `/<venue>` builder → `BuiltMenuResult`.
-  - *Builder* — tier chips, guest-count stepper, and **one guest row per guest** (auto-populated
-    from the count, kept in sync as it changes). Each row has an **editable name** (→ "Guest N"
-    fallback) + allergen chips. No add/remove buttons; leave non-dietary guests blank. (Internal
-    tool — the old "tables of 12+ arranged with the venue" hint was removed; 12+ still scales
-    silently via `ceil(G/4)`.)
-  - *Results = a 2-stage flow* (`BuiltMenuResult.tsx`): **Edit → Confirm menu → Kitchen docket**
-    (replaces the old free Guest-view↔docket toggle). The editable menu is held in React state
-    (`menu: SharedDish[]`, seeded from `sharedMenu`); budget, per-head, coverage badges, and modify
-    notes all recompute live from that state via `coverage-core` — no server round-trip.
-    - *Edit stage* — centrepiece **"Set Menu draft"** (renamed from "The table — everything to
-      make"): ONE complete list (tier + added + dedicated), Title-cased names (`prettyName`), each
-      row with **− / + qty steppers** (remove at 0) and a live price; badges **"only for <name>"**
-      (dedicated), **"modified"** + inline **"↳ MODIFY for <name>: <sub>"**, and **"no allergen
-      data"**. A **general "Add another dish from menu" dropdown** sits at the foot of the draft card
-      (divided off) — lists the full `catalog` (incl. desserts/lunch plates) with a single **＋ add**
-      → `addDish(key, "shared")`, for non-dietary/operational changes. The financial stat row shows
-      per-head / total food / target budget + a **contextual tile** ("remaining balance" under
-      budget, flips to "over per head" when over) + guest count; an amber over-budget notice shows
-      the factual amount (no "you have the final say" reassurance copy). The **guest roster** rows are expandable
-      dropdowns**: collapsed = name + allergens + live coverage badge; expanded = that guest's
-      AI-llergy breakdown from `menuAccess` (**Can eat / With a modification / Ask the kitchen /
-      Not suitable**), each eatable/modifiable dish with **＋ shared** and **＋ just for them**
-      buttons (`addDish` → increments an existing shared line, or appends `source:"added"` /
-      `source:"dedicated", intendedFor:[guestId]`). This **absorbs** the old standalone "Dietary
-      requirements" panels. A **Confirm menu** button (never disabled — **warn but allow**: an
-      amber summary flags under-covered guests / over-budget but the planner has final say).
-    - *Confirmed stage* — the printable cards below, **fed the edited menu**, with a **"← Back to
-      edit"** button (Confirm isn't a dead-end), **Print**, and a **"Kitchen docket ↔ Waiter card"**
-      toggle (`docView`). Both cards render under `body.smb-docket-mode` (chrome stripped) and print
-      via the same button. `onReset` ("← Start over") returns to the inputs.
-  - *Kitchen docket* — a **plain black-on-white one-page document** (no logo / venue title /
-    tagline / background). "SET MENU — PARTY OF N" heading + a bordered Qty / Dish / Notes table + a
-    GUESTS roster table. Each dish is shown **once at its costed qty**; modifications are grouped
-    plating notes on that row — **"MODIFY for <guests>: <swap> (reason)"** — and dedicated dishes read
-    **"ONLY for <name>"**. `shortMod` keeps the **reason** (e.g. "…→ Garlic Toum (dairy-free)" — Tom's
-    ask) and drops only the "— note: adds …" tail (the introduced allergen is already guaranteed safe
-    for that guest). Each guest's plate is evaluated against their OWN allergens, so a swap that adds
-    an allergen only ever lands on the plate of a guest who doesn't avoid it. Prints straight to a
-    chef's docket.
-  - *Waiter card* (front-of-house, printable) — "DISH PLACEMENT — PARTY OF N": per dish, **who to
-    place it for** — dedicated → **"ONLY <name>"**; shared → **"whole table"** or **"NOT <names>
-    (<their allergens>)"** (the dietary guests who can't eat it), plus a light **"<name>: modified
-    portion"** note where a guest gets a tweaked plate. Reuses `canEatShared` from `coverage-core` so
-    "who can eat what" matches the coverage engine exactly; allergen-unknown shared dishes list all
-    dietary guests as "NOT" (never served to an allergy guest unconfirmed). Guests referenced by
-    name/number (no seating geometry is collected). Component `WaiterCard` in `BuiltMenuResult.tsx`.
+- **Screens (Phase M Release 3 — waiter-first iPad UI, 2026-10-23).** Used by a waiter on a venue iPad
+  at the table; the iPad is then walked to the pass and the kitchen reads the docket on screen.
+  `/` venue picker → `/<venue>` (`SetMenuBuilder.tsx` owns all state) → order (`BuiltMenuResult.tsx`)
+  → kitchen / waiter (`KitchenView.tsx`). Pure helpers: `src/lib/order-view.ts` (live coverage model,
+  merged rows, course groups, notes, `changeLine`), `src/lib/order-storage.ts`, `src/lib/diet-labels.ts`
+  (builder-only "No gluten" labels derived from `allergens.ts` ids — `allergens.ts` stays a verbatim copy).
+  - *Inputs* — optional **Table / booking name** (client-only, heads the docket); tier chips ("$68 /
+    per head · 11 dishes", defaulting to the last tier used on this iPad, `smb.lastTier.<venue>`); a
+    typeable guest count (empty start, 52px −/+ starting at 12, clamped 1–40 on blur, never below the
+    number of dietary guests — inline message, nothing deleted); **"＋ Add dietary guest"** cards (seat
+    or name + chips that say what the guest avoids: Vegetarian · Vegan · Halal / No gluten · No dairy ·
+    No nuts (= peanuts + tree nuts) · No eggs · No shellfish / More…). Labels: number → "Seat 4", blank →
+    "Guest A". **Only dietary guests are sent** (a card with no chips isn't); the engine models the other
+    seats as `__party__`. Button: "Build order — 20 guests, 5 dietary"; "Back to order →" when the inputs
+    are unchanged; rebuilding after edits confirms first.
+  - *Order (read-only by default)* — top bar "← Guests" / "Table 12 · 20 guests · $68 menu" / "New
+    order" (confirm). **Dietaries card**: one plain-English line per dietary guest, live from the edited
+    menu via `coverage-core` (+ the `__party__` stand-in, `tableSize = max(guestCount, guests)`; single
+    0.85 boundary): "✓ Plenty to eat" or "Light on food — check with chef" + "Can eat here: …" + "Find a
+    dish for Dan" (guest panel: Can eat / With a change, "＋ Dan's plate" / "＋ Table"; Ask the kitchen and
+    Not suitable collapsed). "Everyone else (N)" appears only when the rest of the table is light.
+    **Order card**: one merged row per dish (key `lineKey`), in course order (all courses blank → today's
+    order); the plated split and every MODIFY instruction are notes on the row ("3 plated separately:
+    Ava (vegan), …", "Dan's plate: Remove Butter (dairy-free)"); allocation rows "17 skewers, 1 per
+    guest (= 8½ dishes)". **Changed for dietaries** callout from `result.changes` (3 shown, "Show all").
+    **Suggestion chips** from `result.suggestions`, re-checked against the live remaining budget, never
+    auto-added. **One budget line** (On / Under / Over budget, en-NZ money). Sticky bar: [Adjust order]
+    [Show kitchen →].
+  - *Adjust mode* — a stepper per row (acts on the shared line; locked "1 per guest" rows have none); tap
+    to expand into "To share", one stepper per plate, "Extra dishes" on allocation rows, and "＋ Plate
+    for:" chips ("Dan (modified)"). Edits go through `changeLine(menu, ref, delta)` — by line identity,
+    never index; locked lines never change. "＋ Add a dish" lists the catalog with "Suits: Ava, Dan".
+  - *Kitchen / Waiter* (`body.smb-docket-mode`, shell 1180px) — header "TABLE 12" + "20 GUESTS · $68 MENU
+    · 7:42 PM", a black **DIETARIES** block (sticky left column ≥900px, stacked in portrait), merged rows
+    with 2.4rem quantities and inverse **[MODIFY] / [PLATE]** tags (no colour — glare). Every plate is
+    listed by recipient; every line's instructions are carried onto the row (`kitchenNotes`). Waiter card:
+    "Share: whole table / NOT Ben (no gluten)", "Plates: …", "… is modified" (locked allocation lines use
+    safe-only access). Toolbar [← Order] [Kitchen | Waiter] [Print] (44px). Screen wake lock while open
+    (try/catch; re-requested on `visibilitychange`).
+  - *Persistence* — localStorage only, `smb.order.v1.<venue>` = `{v, savedAt, inputs, builtFrom, built:
+    {result, menu, guestCount, updatedAt, edited, usedSuggestions}, view}`; every access in try/catch
+    (the app works when storage throws); shape-checked on load. Under 8 h old → restored (incl. the
+    stage); older → offered as "Reopen". Stage mirrored in the URL hash (`#order` / `#kitchen` /
+    `#waiter`, `pushState` + `popstate`, not the Next router) so Back and refresh work. "New order" moves
+    the order to `smb.lastOrder.<venue>` → "Reopen last order (Table 12, 7:42 pm)".
+  - Pre-R3 history (edit → Confirm → docket, one guest row per seat, GUESTS tables, stat tiles) lives in
+    git; its CSS classes stay in `globals.css` (append-only rule).
 
 ---
 
@@ -731,7 +731,11 @@ the Phase L target (52 such duplicates exist in the Phase K baseline). Exit 1 on
 - **v2 Phase M (engine) delivered — standard menu first + explained changes (Tom: "weird suggestions",
   2026-10-23).** See §3 ⚠ Phase M. Release 1 (same day, live): kitchen docket + waiter card now always print a
   plate's MODIFY instruction (a "＋ just for them" add from "With a modification" printed none — safety fix);
-  menu adds never bump Kisa locked lines; clearer network errors. Release 3 (waiter-first iPad UI) next.
+  menu adds never bump Kisa locked lines; clearer network errors. **Release 3 (waiter-first iPad UI)**:
+  dietary-only inputs, read-only order screen with merged rows + "Changed for dietaries" + suggestion chips,
+  adjust mode by line identity, arm's-length kitchen/waiter screens, localStorage persistence + hash stages
+  (§4). Engine untouched (battery: no differences vs `battery_baseline_phase_m.json`); a WebKit check
+  asserts every pre-R3 MODIFY / plate instruction still prints on the merged docket and waiter card.
 - **v2 Phase L delivered — share-accounting optimiser (Tom round 5b, 2026-09-05).** Dietary guests are
   grouped by identical requirements; unsuitable dishes are portioned for the guests who eat them (eater-aware
   caps); each group is fed with ONE line per dish from a budget reserve, ranked on-menu first and sized to
