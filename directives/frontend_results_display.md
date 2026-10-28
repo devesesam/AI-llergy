@@ -8,6 +8,18 @@
 > Modified dishes also show any CAN BE / check note they carry. A chef swap's " — note: adds X"
 > displays as ". Note: adds X" (`showMod` in `MenuItem.tsx`; `substitutions.ts` stays verbatim).
 > The confirm checkbox reads Tom's wording (2026-10-28). See `custom_allergy_input.md` v2.7.
+>
+> **My Order (Tom, 2026-10-28).** Each dish card has "+ Add to My Order", then a − n + stepper;
+> a sticky "View My Order (n dishes) →" bar opens the summary (`MyOrder.tsx`, hash `#my-order`, so
+> the phone's Back returns to the menu). The summary: Tom's exact banner ("Please show this
+> summary to your waiter … Your order has not yet been placed.", `WAITER_MESSAGE` in
+> `src/lib/my-order.ts`), the guest's selections under "Dietary requirements", then "2 ×
+> Hummus" lines with every required note (chef swaps for modified dishes, CAN BE notes, "May
+> contain X. Please check with staff."). **No prices** (Sam: the till sets them). Nothing is sent
+> anywhere: the selections, results and order are kept in localStorage per venue
+> (`menukey.session.v1.<slug>`, 4 hours) so a refresh at the table restores them; Start Over
+> clears it (confirms first when the order isn't empty). A restored guest isn't shown the
+> disclaimer again. Tests: `e2e/menukey/w2.mjs` (iPhone + Android profiles, session scratchpad).
 
 ## 1. Overview
 

@@ -412,7 +412,24 @@ Map/Set iteration order. Same inputs → same output.
 >   plus top-ranked-first starved the second guest at a 5-top ($19.50 headroom, every dish at its 1× floor);
 >   cheapest-gap-first rounds + closest-fit sizing fixed it with both guests covered.
 
-> **⚠ Phase M (CURRENT — THE AUTHORITY on orchestration) — standard menu first, then explained changes (2026-10-23).**
+> **⚠ Phase N (CURRENT, 2026-10-28): don't repeat a dish that's already on the table.** Tom:
+> "Count suitable food already on the shared menu before adding extras for dietary guests. If
+> avocado and nori salad is already included, choose another suitable dish." Reproduced: Mr
+> Go's $44 x 12 with 3 vegans got plates of Avocado & Nori Salad and Mushroom Fried Rice, both
+> already shared. Change (one line, `orderForGap` in `build-set-menu.ts`): a group's plate is a
+> suitable dish NOT on the table first (venue-ranked, `includeInSetMenu` + priced), and a dish
+> already shared is the fallback only when nothing else can be funded (it is also the only kind
+> the earmark fallback can use). Everything else in Phase M is unchanged: coverage already
+> counts the shared food a group eats; identical diets are one group; share reductions keep
+> base x ceil(eaters / 4); hard budget cap; no-dietary output byte-identical. Battery
+> (`battery_baseline_phase_n.json`, adds Tom's case "tom: 3 vegan /12" and a "repeat plates"
+> total): repeat plates 203 → 52, 79 of 148 scenarios changed (all dietary), all invariants
+> pass. Tom's case now plates Bok Choy + Mushroom Dumplings (vegans 0.85). One more guest
+> flagged: Ombra 49 gl+garlic & dairy+eggs /5 (g1 0.54 → 0.76 but g2 0.95 → 0.83, the $24 crudo
+> for g1 uses the room); a 5-top, already on the documented small-party list; nothing 6+
+> changed its flags. Earlier Phase M text saying "on-menu first" is superseded by this block.
+
+> **⚠ Phase M (the base; Phase N above changes only the plate order) — standard menu first, then explained changes (2026-10-23).**
 > Tom: staff "are getting thrown off by some weird suggestions"; the last 10% has an "exponential" cost.
 > **Who actually uses the tool (Sam):** a **waiter on a venue iPad, at the table, while taking the order**;
 > the iPad is walked to the kitchen. So the first draft must read like a chef wrote it, with no edits. The

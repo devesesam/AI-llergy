@@ -67,6 +67,12 @@ KISA_EXTRA = [
 ]
 # Other tiers (Phase M review, 2026-10-23): the share reductions + plate funding once left
 # non-dietary guests at 0.87-0.89 unflagged on these. Appended, so older ids/order are unchanged.
+# Tom's own examples (Phase N, 2026-10-28): 3 vegans at Mr Go's got extra plates of Avocado &
+# Nori Salad and Mushroom Fried Rice, both already shared on the table.
+TOM_CASES = [
+    ("tom: 3 vegan /12", "mr-gos", "44", 12, [["vegan"], ["vegan"], ["vegan"]]),
+]
+
 OTHER_TIERS = [
     ("t: none /5", "mr-gos", "32", 5, []),
     ("t: halal /5", "mr-gos", "32", 5, [["halal"]]),
@@ -133,6 +139,7 @@ def scenarios() -> list[tuple[str, str, str, int, list[list[str]]]]:
                 out.append((f"{mix} /{party}", venue, tier, party, sets))
     out.extend(KISA_EXTRA)
     out.extend(OTHER_TIERS)
+    out.extend(TOM_CASES)
     return out
 
 
@@ -404,6 +411,12 @@ def summary_row(res: dict, fallback_standard: list[dict] | None = None) -> dict:
         "sugg": len(res["suggestions"]) if "suggestions" in res else -1,
         "left": round(res["budget"]["totalBudget"] - res["budget"]["spreadCost"], 2),
         "alleat": len(all_eat_cuts(res, (res.get("standard") or {}).get("sharedMenu", fallback_standard))),
+        # Phase N: dietary plates of a dish that is also shared on the table (Tom's "duplicates")
+        "repeat": sum(
+            1 for d in ded
+            if any(x["dishKey"] == d["dishKey"] and x["source"] != "dedicated" and not x.get("locked")
+                   for x in res["sharedMenu"])
+        ),
     }
 
 
@@ -562,7 +575,7 @@ def main() -> int:
                 print("\n".join(lines))
         print(f"{changed} of {len(results)} scenarios changed" if changed else "no differences")
 
-    tot = {"ded": 0, "dup": 0, "added": 0, "review": 0, "alleat": 0, "sugg": 0}
+    tot = {"ded": 0, "dup": 0, "added": 0, "review": 0, "alleat": 0, "sugg": 0, "repeat": 0}
     for _, _, s in rows:
         for k in tot:
             tot[k] += max(0, s[k])
@@ -570,7 +583,7 @@ def main() -> int:
     print(f"\n{len(rows)} scenarios | dedicated lines {tot['ded']} | duplicate lines {tot['dup']} | "
           f"off-menu adds {tot['added']} | guests needing review {tot['review']}")
     print(f"all-eat dishes cut below standard {tot['alleat']} | suggestions {tot['sugg']} | "
-          f"scenarios under 90% of budget {under90}")
+          f"scenarios under 90% of budget {under90} | repeat plates (dish also shared) {tot['repeat']}")
     if timings:
         for p in sorted({t[1] for t in timings}):
             ms_list = [t[2] for t in timings if t[1] == p]

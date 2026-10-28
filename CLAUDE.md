@@ -75,7 +75,7 @@ Scripts are deterministic Python 3.11, no LLM calls, stdlib only. Intermediate f
    directives without asking.
 2. Verify like this: `npm run build` → `npm run start` → battery (builder) or a manual smoke of
    `/kisa` + `POST /api/submit` (webapp) → push → re-check the live URL. Report what you actually ran.
-3. Tom's feedback arrives in numbered phases (builder is at Phase M). Each phase gets a ⚠ block in
+3. Tom's feedback arrives in numbered phases (builder is at Phase N). Each phase gets a ⚠ block in
    `set_menu_builder.md` and a memory note; earlier blocks are history, the latest is the authority.
 4. Ask before anything hard to reverse: deleting Netlify sites/env vars, rewriting sheet tabs, force
    pushes, changing thresholds or the coverage metric.
