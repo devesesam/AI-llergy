@@ -2,6 +2,11 @@
 
 **Goal**: Manage the allergen/dietary preference list for the AI-llergy app, including adding new allergens, updating synonyms, managing groups, and handling the allergy/preference distinction.
 
+> **⚠ 2026-10-28:** search is now whole-query and ingredient-aware (see
+> `custom_allergy_input.md` v2.7). When adding synonyms, run the scratchpad search test or an
+> equivalent over every menu ingredient: a synonym that is also a common ingredient word
+> (as "peppers" was for capsicum) produces wrong suggestions.
+
 ## 1. Overview
 
 The allergen system consists of six parts:

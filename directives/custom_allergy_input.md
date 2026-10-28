@@ -2,6 +2,48 @@
 
 **Goal**: Document the autocomplete tag-based allergen input system, including local synonym search, AI fallback, custom tags, and submit validation.
 
+> **⚠ v2.7 (2026-10-28): sheet-first ingredient search. This block is the authority; older
+> sections below describe the earlier fuzzy/tokenised search and are history.**
+> Prompted by Tom/Jonny: "coriander" at Kisa didn't link to the spreadsheet and the
+> modification suggestions looked wrong. Measured over the 724 ingredient phrases on the
+> three menus, the old search gave 131 wrong fuzzy hits (salt → wheat, cream → shellfish,
+> mint → dairy) and 120 loose substring hits (coconut milk → dairy, black pepper → capsicum).
+> - **Ingredient index** (`src/lib/ingredients.ts`, served by `GET /api/ingredients?venue=`
+>   from the cached menu): each dish's name + Ingredients cell, folded (lowercase, letters
+>   only, simple plurals). Matching is whole-word phrase containment, so "egg" never
+>   matches "eggplant" and "nut" never matches "nutmeg". Small synonym list (cilantro ↔
+>   coriander, aubergine ↔ eggplant, courgette ↔ zucchini, scallion ↔ spring onion,
+>   chili ↔ chilli). The file has no server imports; the dropdown and the server share it.
+> - **Dropdown**: allergens first, then "Coriander (in 7 dishes)". Picking it makes a
+>   `CustomTag` with `ingredient: "coriander"` (🌿 pill). Enter picks the first option.
+>   A word in neither list: "We couldn't find 'X' on this menu. Add it and we'll check each
+>   dish. Please confirm with staff." → a plain custom tag (🏷️), the **AI backup**.
+> - **`searchSynonyms(query, { ingredient })`** matches the WHOLE query (filler words
+>   stripped): exact (plurals folded) → word-prefix → word-by-word exact for "peanuts or
+>   dairy" → fuzzy (4 to 7 letters: 1 edit; 8+: 2). When the query is an ingredient on
+>   this menu, `ingredient: "exact"` allows only exact allergen hits ("cream" → Dairy,
+>   "pea" → nothing) and `"partial"` drops the word fallback and fuzzy. "Peppers" was
+>   removed from capsicum's synonyms (black/white/Sichuan pepper aren't capsicum).
+> - **Server** (`api/submit/route.ts`): (1) sheet columns + chef substitutions
+>   (`filterMenu`), (2) `applyIngredientTags` (`src/lib/ingredient-filter.ts`) across EVERY
+>   bucket: a dish containing the term is excluded unless a chef substitution for that dish
+>   removes/swaps that ingredient without introducing a selected allergen (then it is
+>   "Can be modified" with "Ask to remove Coriander (makes it coriander-free)"); no AI.
+>   (3) `aiVerdicts` (`ai-filter.ts`) only for free-text tags and allergens without a
+>   sheet column. The AI can only exclude a dish or add "May contain X. Please check with
+>   staff."; it never removes a sheet note.
+> - **Bugs fixed on the old AI path**: CAN BE notes were dropped whenever a custom tag was
+>   present (latent: no sheet has CAN BE cells today), and chef-modified dishes were never
+>   checked against the typed word (gluten + coriander offered Falafel (Lunch Plate) with a
+>   gluten swap; it contains coriander).
+> - Results: "Check with staff" section for AI-unsure dishes (`checkItems`), the
+>   CAN BE section is "Can be made to suit you (subject to kitchen approval)", and
+>   "Checked against this menu's ingredient lists. Please confirm with your waiter." shows
+>   when an ingredient tag was used (`meta.ingredientsChecked`).
+> - Tests (session scratchpad, not committed): `search_test.cjs` runs every ingredient term
+>   from the three menus through the search (0 fuzzy hits; the 48 remaining allergen hits
+>   are all correct), `submit_test.py` (API), `e2e/menukey/w1.mjs` (iPhone + Android).
+
 ## 1. Overview
 
 The custom allergy input replaces freeform text with a structured system:

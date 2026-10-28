@@ -2,6 +2,13 @@
 
 **Goal**: Display filtered menu results to the user in a beautiful, brand-aligned UI after form submission. The results view replaces the form and shows safe items, caution items, and relevant notes.
 
+> **⚠ 2026-10-28:** results sections are now Safe to Eat · Can be modified for you (subject to
+> kitchen approval) · Can be made to suit you (CAN BE) · **Check with staff** (`checkItems`:
+> AI backup unsure, "May contain X. Please check with staff.") · an ingredient-list footer.
+> Modified dishes also show any CAN BE / check note they carry. A chef swap's " — note: adds X"
+> displays as ". Note: adds X" (`showMod` in `MenuItem.tsx`; `substitutions.ts` stays verbatim).
+> The confirm checkbox reads Tom's wording (2026-10-28). See `custom_allergy_input.md` v2.7.
+
 ## 1. Overview
 
 After the user submits their allergen selections, the form is replaced by a results view that displays:

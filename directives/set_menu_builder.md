@@ -486,6 +486,19 @@ slots[{intendedFor?, standardQty, qty, reasons[{kind, delta, guestIds, note}]}]}
 
 ## 4. API + screens
 
+> **⚠ FOH docket only (Tom, 2026-10-28). Supersedes the kitchen docket / waiter card / table-extras
+> notes below.** The Kitchen/Waiter toggle and the kitchen view are gone: one docket
+> (`DocketView.tsx`, button "Show docket →", hash `#docket`; saved orders and old `#kitchen` /
+> `#waiter` links map to it via `asOrderView` in `order-storage.ts`). Per row (`docketNotes` in
+> `order-view.ts`): "Share: whole table" / "Share: NOT Dan (dairy-free)", Kisa allocation notes,
+> "5 to share · 1 individual", and the FULL [MODIFY] instruction for every modified shared
+> portion. Every individual plate is its own boxed block (`docketPlates`), in Tom's wording:
+> "[FOR GUEST 1 ONLY] 1 plate / Guest 1: gluten-free and dairy-free. / Modify: … / This dish is
+> for Guest 1 only, not for sharing." (`dietPhrase` in `diet-labels.ts`; nuts read "nut-free").
+> DIETARIES block: "GUEST 1: GLUTEN-FREE AND DAIRY-FREE" + "Own dishes: …". The QA-pass
+> **table-extras default is reverted** (Tom wants every individual dish labelled): every
+> dedicated line is a plate again on every screen. Presentation only; battery: no differences.
+
 - **`POST /api/build`** `{venue, tier, guestCount, guests:[{id, allergens[]}]}` → `{venue, tier,
   budget, sharedMenu[] (with source/intendedFor), catalog[] (addable priced dishes),
   guests[] (with coverage + dish lists + menuAccess), warnings[], meta, optimiser}`. 400 on
@@ -753,6 +766,11 @@ profiles, both orientations, plus Chrome) live in the session scratchpad and are
   `setmenu.ai-lergy.co.nz` host still resolves (301). No open deployment items.
 - **No unresolved Dish Keys (2026-08-06).** The last gap (Mr Go's `KUNG PAO CAULIFLOWER V2.0`) was fixed
   in the sheet by Sam — `/api/health` reads `ok: true, totalUnresolved: 0` across all three venues.
+- **Tom's 2 Nov rollout list (2026-10-28).** B1 (UI): FOH docket only + labelled individual dishes,
+  table extras reverted (see ⚠ in §4). Safety checker (`strict.mjs`, session scratchpad) now asserts
+  each plate block names exactly its guests, qty, every guest's diet, every change and "not for
+  sharing": seeds 7/11/23 pass (1,222 / 1,226 / 1,227 checks). Not doing: Dean's 15/12/10% budget
+  reserve (the chefs' base menus already cost 91 to 98% of per-head; Sam is raising it with Tom).
 - **QA pass after Phase M (2026-10-23).** Table extras for preference diets, kitchen names, course
   groups (sheet values to paste), status/allergen-list polish; all presentation (battery: no
   differences). Accepted, documented: two small-party guests newly "Needs review" since Phase M
