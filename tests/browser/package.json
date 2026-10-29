@@ -1,0 +1,9 @@
+{
+  "name": "menukey-browser-tests",
+  "private": true,
+  "type": "module",
+  "description": "Playwright checks of what staff and guests actually see. Run against localhost or the live sites (BASE env).",
+  "dependencies": {
+    "playwright-core": "1.64.1"
+  }
+}

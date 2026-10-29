@@ -21,6 +21,17 @@
 > clears it (confirms first when the order isn't empty). A restored guest isn't shown the
 > disclaimer again. Tests: `e2e/menukey/w2.mjs` (iPhone + Android profiles, session scratchpad).
 
+> **⚠ 2026-10-29: results sections have no height cap.** Tom reported the dish list "cut off at
+> some random point". The accordion's open state was `max-height: 2000px` + `overflow: hidden`, so
+> any section taller than 2,000px was silently clipped (Kisa + Eggs: 18 of 32 safe dishes hidden).
+> The bug predates My Order (Kisa + Eggs hid 7 dishes before it), but the Add row made each card
+> ~56px taller, so it hit ordinary selections. Fix: `.accordion__content` is a one-row grid that
+> animates `grid-template-rows` 0fr → 1fr around an `.accordion__inner` wrapper
+> (`AccordionSection.tsx`); no cap. **Rule: never cap a list's height with max-height + overflow
+> hidden.** Testing lesson: text checks and Playwright taps both "see" clipped content
+> (Playwright scrolls a clipped box to reach a button), so a visibility check must compare a
+> section's rendered height with its scrollHeight (`accordion_check.mjs`, `clip_probe.mjs`).
+
 ## 1. Overview
 
 After the user submits their allergen selections, the form is replaced by a results view that displays:

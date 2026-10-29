@@ -414,9 +414,12 @@ def summary_row(res: dict, fallback_standard: list[dict] | None = None) -> dict:
         # Phase N: dietary plates of a dish that is also shared on the table (Tom's "duplicates")
         "repeat": sum(
             1 for d in ded
-            if any(x["dishKey"] == d["dishKey"] and x["source"] != "dedicated" and not x.get("locked")
-                   for x in res["sharedMenu"])
+            if not d.get("toTable")
+            and any(x["dishKey"] == d["dishKey"] and x["source"] != "dedicated" and not x.get("locked")
+                    for x in res["sharedMenu"])
         ),
+        # Phase O: extra portions of an on-table dish that go to the table for a guest
+        "extra": sum(1 for d in ded if d.get("toTable")),
     }
 
 
@@ -575,7 +578,7 @@ def main() -> int:
                 print("\n".join(lines))
         print(f"{changed} of {len(results)} scenarios changed" if changed else "no differences")
 
-    tot = {"ded": 0, "dup": 0, "added": 0, "review": 0, "alleat": 0, "sugg": 0, "repeat": 0}
+    tot = {"ded": 0, "dup": 0, "added": 0, "review": 0, "alleat": 0, "sugg": 0, "repeat": 0, "extra": 0}
     for _, _, s in rows:
         for k in tot:
             tot[k] += max(0, s[k])
@@ -583,7 +586,8 @@ def main() -> int:
     print(f"\n{len(rows)} scenarios | dedicated lines {tot['ded']} | duplicate lines {tot['dup']} | "
           f"off-menu adds {tot['added']} | guests needing review {tot['review']}")
     print(f"all-eat dishes cut below standard {tot['alleat']} | suggestions {tot['sugg']} | "
-          f"scenarios under 90% of budget {under90} | repeat plates (dish also shared) {tot['repeat']}")
+          f"scenarios under 90% of budget {under90} | repeat plates (dish also shared) {tot['repeat']} | "
+          f"to-table extras {tot['extra']}")
     if timings:
         for p in sorted({t[1] for t in timings}):
             ms_list = [t[2] for t in timings if t[1] == p]

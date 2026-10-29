@@ -412,7 +412,24 @@ Map/Set iteration order. Same inputs → same output.
 >   plus top-ranked-first starved the second guest at a 5-top ($19.50 headroom, every dish at its 1× floor);
 >   cheapest-gap-first rounds + closest-fit sizing fixed it with both guests covered.
 
-> **⚠ Phase N (CURRENT, 2026-10-28): don't repeat a dish that's already on the table.** Tom:
+> **⚠ Phase O (CURRENT, 2026-10-29): no suggestions; an extra of a dish already on the table goes
+> to the TABLE.** Tom: remove the leftover-budget suggestions; "don't suggest another hummus
+> allocated to an individual guest … either increase the shared quantity for the table or
+> suggest a different suitable dish". Sam chose "bigger shared dish". Engine: `suggestAdditions`
+> and `result.suggestions` removed; the Phase N order stands (a different suitable dish first);
+> when only an on-table dish fits, its line is marked `toTable` at assembly: shown as part of
+> the shared quantity ("6 × Shared with the table", changes "+1 Hummus: more on the table for
+> Ava (vegan)"), never as an individual allocation, and still credited to the guest in the
+> coverage maths (no metric change). Earmarking retired (`EARMARK_FALLBACK = false`): shown as
+> shared it would add no food. Client: `mergeRows` puts `toTable` lines in `shared`;
+> `refMatches`, `instructionsFor` and the statuses treat them as shared. Staff allocations made
+> in Adjust are always real individual allocations. Battery (`battery_baseline_phase_o.json`):
+> individual repeats 52 → 0, 46 to-table extras, flagged guests 30 → 37, all 7 new flags in
+> parties of 5 or 6 (earmark retired); every 12+ booking unchanged; all invariants pass. The
+> strict alternative (no extra at all) was measured and rejected: 52 flags, a vegan at Kisa
+> $68/20 at 0.47. `result.changeLog` (additive) lets the editor re-diff live.
+
+> **⚠ Phase N (2026-10-28; Phase O above adds the to-table rule): don't repeat a dish that's already on the table.** Tom:
 > "Count suitable food already on the shared menu before adding extras for dietary guests. If
 > avocado and nori salad is already included, choose another suitable dish." Reproduced: Mr
 > Go's $44 x 12 with 3 vegans got plates of Avocado & Nori Salad and Mushroom Fried Rice, both
@@ -502,6 +519,21 @@ slots[{intendedFor?, standardQty, qty, reasons[{kind, delta, guestIds, note}]}]}
 ---
 
 ## 4. API + screens
+
+> **⚠ Allocation wording, editing and live changes (Tom, 2026-10-29). Supersedes "plated" wording
+> below.** No staff-facing "plate(d)" anywhere. A dish with an individual allocation shows
+> "4 × Shared with the table" and "1 × Individually allocated for Guest 3 (vegan)" on separate
+> lines (`splitLines`, order screen) and on the docket (`docketNotes`; each block is headed
+> "1 × Individually allocated for Guest 3", still ending "…only, not for sharing."). Adjust:
+> each allocation has its stepper, "Allocated to:" guest chips to change who it's for
+> (`reassignLine`, merges into a matching allocation; guests who can't eat it are disabled;
+> the last guest can't be taken off) and Remove; "＋ Add a dish" has "＋ For <guest>" for every
+> dietary guest who can eat it; "＋ Allocate to:" for the rest. "Changed for dietaries" is
+> LIVE: `changeItems` re-diffs `result.standard.sharedMenu` against the menu on screen with
+> `buildChanges`, keeping the engine's reasons from `result.changeLog` (new, additive) and
+> labelling anything else "individually allocated for X" / "added in Adjust" / "removed in
+> Adjust". The leftover-budget suggestions are gone from the screen. Browser tests are now
+> committed: `tests/browser/` (see its README).
 
 > **⚠ FOH docket only (Tom, 2026-10-28). Supersedes the kitchen docket / waiter card / table-extras
 > notes below.** The Kitchen/Waiter toggle and the kitchen view are gone: one docket
