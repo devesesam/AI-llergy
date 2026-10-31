@@ -12,7 +12,7 @@
 > **My Order (Tom, 2026-10-28).** Each dish card has "+ Add to My Order", then a − n + stepper;
 > a sticky "View My Order (n dishes) →" bar opens the summary (`MyOrder.tsx`, hash `#my-order`, so
 > the phone's Back returns to the menu). The summary: Tom's exact banner ("Please show this
-> summary to your waiter … Your order has not yet been placed.", `WAITER_MESSAGE` in
+> summary to one of our team … Your order has not yet been placed." (Tom changed "your waiter" to "one of our team", 2026-10-31), `WAITER_MESSAGE` in
 > `src/lib/my-order.ts`), the guest's selections under "Dietary requirements", then "2 ×
 > Hummus" lines with every required note (chef swaps for modified dishes, CAN BE notes, "May
 > contain X. Please check with staff."). **No prices** (Sam: the till sets them). Nothing is sent

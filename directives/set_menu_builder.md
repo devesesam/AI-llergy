@@ -520,6 +520,21 @@ slots[{intendedFor?, standardQty, qty, reasons[{kind, delta, guestIds, note}]}]}
 
 ## 4. API + screens
 
+> **⚠ Group allocations and "Adjustments for dietaries" (Tom, 2026-10-31). Supersedes the wording
+> in the block below where they differ. Display only; engine and battery unchanged.** An
+> allocation is never "1 × … for John and Sam". `allocLines` / `allocTitle` / `docketPlates`
+> (order-view.ts): one guest → "1 × Individually allocated for Dan (no dairy)"; a group whose
+> quantity splits evenly (one each) → a line per guest ("1 × Individually allocated for John
+> (vegetarian)", "1 × … for Sam (vegetarian)") and a docket block per guest; fewer dishes than
+> people or an uneven split → "1 × Garlic Pilaf to be shared by James (vegetarian) and Guest A
+> (vegetarian) only", one docket block ending "Shared by James and Guest A only, not for the rest
+> of the table." A diet after every name. Adjust titles: "Individually allocated: 1 each for …" /
+> "To be shared by … only", with the stepper; the order-screen split lines are not repeated
+> under it. Chips: "Individually allocate to:" and "＋ Individually allocate to:". The changes
+> panel is "Adjustments for dietaries", always fully open (no Show all), every name spelled out
+> (no "and 2 others"); group notes read "1 each, individually allocated for …" / "to be shared by
+> … only". Still one data line per allocation (the split is wording).
+
 > **⚠ Allocation wording, editing and live changes (Tom, 2026-10-29). Supersedes "plated" wording
 > below.** No staff-facing "plate(d)" anywhere. A dish with an individual allocation shows
 > "4 × Shared with the table" and "1 × Individually allocated for Guest 3 (vegan)" on separate

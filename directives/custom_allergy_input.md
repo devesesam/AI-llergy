@@ -38,7 +38,7 @@
 >   gluten swap; it contains coriander).
 > - Results: "Check with staff" section for AI-unsure dishes (`checkItems`), the
 >   CAN BE section is "Can be made to suit you (subject to kitchen approval)", and
->   "Checked against this menu's ingredient lists. Please confirm with your waiter." shows
+>   "Checked against this menu's ingredient lists. Please confirm with one of our team." shows
 >   when an ingredient tag was used (`meta.ingredientsChecked`).
 > - Tests (session scratchpad, not committed): `search_test.cjs` runs every ingredient term
 >   from the three menus through the search (0 fuzzy hits; the 48 remaining allergen hits

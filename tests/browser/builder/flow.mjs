@@ -1,6 +1,6 @@
 // Set Menu Builder waiter flow, tapping through the real screens (Tom's points, 2026-10-29):
 // no suggestions; add a dish for one guest, change who it's for, remove it, with the
-// "Changed for dietaries" table following every edit live; shared vs individually
+// "Adjustments for dietaries" table following every edit live; shared vs individually
 // allocated quantities on separate lines; the FOH docket; refresh + old links.
 //
 // Usage: BASE=http://localhost:3000 node tests/browser/builder/flow.mjs [ipad|ipad-landscape|chrome]
@@ -50,10 +50,12 @@ check("no suggestions at the bottom of the draft", (await page.locator(".smb-ord
 check("no 'these are the original changes' note", !/original changes/i.test(await page.locator(".smb-order").innerText()));
 await noPlate("order screen");
 await dashes("order screen");
-const before = await changes();
-const showAll = page.getByRole("button", { name: /^Show all/ });
-if (await showAll.count()) await tap(showAll);
+// Tom (2026-10-31): "Adjustments for dietaries", always fully open, every name spelled out.
+check("heading reads 'Adjustments for dietaries'", /Adjustments for dietaries/.test(await page.locator(".smb-order__changes").innerText()));
+check("changes list has no Show all / Show fewer toggle", (await page.getByRole("button", { name: /^Show (all|fewer)/ }).count()) === 0);
 const beforeAll = await changes();
+check("no 'and N others' in the changes", !beforeAll.some((c) => /and \d+ others/.test(c)), beforeAll.find((c) => /others/.test(c)) ?? "");
+check("no ambiguous '1 × … for A and B' allocation line", !/\b1 × Individually allocated for [^\n]* and /.test(await page.locator(".smb-order").innerText()));
 await shot("order");
 
 // 2. Phase O: an extra of a dish already on the table goes to the TABLE, never to a guest
@@ -88,7 +90,6 @@ for (let i = 0; i < n && !added; i++) {
   added = name;
 }
 await tap(page.getByRole("button", { name: "＋ Add a dish" }));
-if (await page.getByRole("button", { name: /^Show all/ }).count()) await tap(page.getByRole("button", { name: /^Show all/ }));
 const afterAdd = await changes();
 const newLine = afterAdd.find((c) => !beforeAll.includes(c));
 check("changes table updates live after adding a dish for Dan", !!newLine && /individually allocated for Dan \(no dairy\)/.test(newLine), `added "${added}" → ${newLine ?? afterAdd.join(" || ")}`);
@@ -106,7 +107,18 @@ if (avaOk) {
   await tap(avaChip);
   const t = (await allocLine.innerText().catch(() => "")) || (await adj.innerText());
   const ch = await changes();
-  check("reassign: allocation now for Dan and Ava, table follows", /Individually allocated for (Dan .*and Ava|Ava .*and Dan)/.test(await adj.innerText()) && ch.some((c) => /Dan/.test(c) && /Ava/.test(c)), `${t.replace(/\n/g, " | ")} :: ${ch.join(" || ")}`);
+  // One dish for two people: "To be shared by Dan (no dairy) and Ava (vegan) only" (Tom, 2026-10-31).
+  check("reassign: one dish for Dan and Ava reads 'To be shared by … only', table follows",
+    /To be shared by (Dan .*and Ava|Ava .*and Dan).* only/.test(await adj.innerText()) && ch.some((c) => /to be shared by/.test(c) && /Dan/.test(c) && /Ava/.test(c)),
+    `${t.replace(/\n/g, " | ")} :: ${ch.join(" || ")}`);
+  const adjNotes = (await adj.locator(".smb-order__note").allInnerTexts()).join("\n");
+  check("Adjust shows the allocation once (no repeated red line)", !/Individually allocated|to be shared by/i.test(adjNotes), adjNotes);
+  check("chips read 'Individually allocate to:'", /Individually allocate to:/.test(await adj.innerText()) && !/(^|\n)\s*Allocated to:/.test(await adj.innerText()));
+  // Two for Dan and Ava: one each
+  await tap(adj.locator(".smb-order__alloc").first().getByRole("button", { name: /^One more / }));
+  check("two for Dan and Ava reads '1 each for …'", /Individually allocated: 1 each for/.test(await adj.innerText()), (await adj.innerText()).replace(/\n/g, " | "));
+  check("changes: '1 each, individually allocated for …'", (await changes()).some((c) => /1 each, individually allocated for/.test(c)), (await changes()).join(" || "));
+  await tap(adj.locator(".smb-order__alloc").first().getByRole("button", { name: /^One fewer / }));
   // take Dan off: only Ava left
   await tap(adj.locator(".smb-order__alloc").first().getByRole("button", { name: /^Dan/ }));
   check("reassign: Dan taken off, now only Ava", /Individually allocated for Ava/.test(await adj.innerText()) && !/allocated for Dan/.test(await adj.innerText()), (await adj.innerText()).replace(/\n/g, " | "));
@@ -124,9 +136,10 @@ await tap(page.getByRole("button", { name: "Show docket →" }));
 await page.locator(".smb-k__title").waitFor();
 check("no Kitchen/Waiter toggle", (await page.locator(".smb-toggle").count()) === 0);
 const heads = await page.locator(".smb-k__plate-head").allInnerTexts();
-check("docket blocks read 'N × Individually allocated for …'", heads.length === 0 || heads.every((h) => /^\d+ × Individually allocated for /.test(h.trim())), heads.join(" | "));
+check("docket blocks: one guest each, or 'to be shared by … only'",
+  heads.every((h) => /^\d+ × Individually allocated for [^,]+$/.test(h.trim()) && !/ and /.test(h) || /^\d+ × .+ to be shared by .+ only$/.test(h.trim())), heads.join(" | "));
 const blocks = await page.locator(".smb-k__plate").allInnerTexts();
-check("every block ends 'only, not for sharing.'", blocks.every((b) => / only, not for sharing\.$/.test(b.trim())));
+check("every block ends 'not for sharing.' / 'not for the rest of the table.'", blocks.every((b) => / only, not for (sharing|the rest of the table)\.$/.test(b.trim())));
 await noPlate("docket");
 await dashes("docket");
 await shot("docket");

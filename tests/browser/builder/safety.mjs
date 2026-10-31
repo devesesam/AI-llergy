@@ -193,19 +193,27 @@ for (let n = 0; n < N_SCENARIOS; n++) {
     for (const nt of kr.notes.filter((x) => x.tag === "MODIFY")) { const i = nt.text.indexOf(": "); for (const w of nt.text.slice(0, i).split(", ")) gotMod.add(`${w}|${nt.text.slice(i + 2)}`); }
     checks++; if ([...expMod].sort().join() !== [...gotMod].sort().join()) F(S, `${re.name} MODIFY exp ${[...expMod]} got ${[...gotMod]}`);
 
-    // SAFETY: every individual allocation is its own complete block.
-    checks++; if (kr.blocks.length !== allocs.length) F(S, `${re.name} ${kr.blocks.length} blocks for ${allocs.length} allocations`);
-    const left = [...kr.blocks];
-    for (const d of allocs) {
-      checks++;
+    // SAFETY: every individual allocation is its own complete block. Tom (2026-10-31): a group
+    // allocation of one each is a block per guest; fewer than one each is one "to be shared by
+    // … only" block.
+    const plan = allocs.flatMap((d) => {
+      const n = d.intendedFor.length, each = n > 1 && d.qty % n === 0 ? d.qty / n : null;
+      if (each) return d.intendedFor.map((id) => ({ d, ids: [id], match: (h) => h === `${each} × Individually allocated for ${nm(id)}`, foot: " only, not for sharing." }));
       const names = d.intendedFor.map(nm);
-      const head = `${d.qty} × Individually allocated for ${joinAnd(names)}`;
-      const bi = left.findIndex((b) => b.head === head);
-      if (bi < 0) { F(S, `${re.name} no block "${head}": ${kr.blocks.map((b) => b.head).join(" | ")}`); continue; }
+      if (n > 1) return [{ d, ids: d.intendedFor, match: (h) => h.startsWith(`${d.qty} × `) && h.endsWith(` to be shared by ${joinAnd(names)} only`), foot: " only, not for the rest of the table." }];
+      return [{ d, ids: d.intendedFor, match: (h) => h === `${d.qty} × Individually allocated for ${joinAnd(names)}`, foot: " only, not for sharing." }];
+    });
+    checks++; if (kr.blocks.length !== plan.length) F(S, `${re.name} ${kr.blocks.length} blocks for ${plan.length} expected`);
+    const left = [...kr.blocks];
+    for (const { d, ids, match, foot: footEnd } of plan) {
+      checks++;
+      const names = ids.map(nm);
+      const bi = left.findIndex((b) => match(b.head));
+      if (bi < 0) { F(S, `${re.name} no block for ${d.qty} × ${names}: ${kr.blocks.map((b) => b.head).join(" | ")}`); continue; }
       const b = left.splice(bi, 1)[0];
       const foot = b.lines[b.lines.length - 1];
-      checks++; if (!foot.endsWith(` only, not for sharing.`) || !names.every((N) => hasName(foot, N))) F(S, `${re.name} footer: ${foot}`);
-      for (const id of d.intendedFor) {
+      checks++; if (!foot.endsWith(footEnd) || !names.every((N) => hasName(foot, N))) F(S, `${re.name} footer: ${foot}`);
+      for (const id of ids) {
         const g = G.find((x) => x.id === id);
         checks++;
         if (g.allergens.length && !b.lines.some((l) => hasName(l, g.name) && g.allergens.every((a) => l.toUpperCase().includes(WORD[a] ?? a.toUpperCase()))))
@@ -237,14 +245,20 @@ for (let n = 0; n < N_SCENARIOS; n++) {
   const orderText = (await page.locator(".smb-order").innerText()).replace(/Lunch Plate/gi, "");
   checks++; if (/\bplated?\b/i.test(orderText)) F(S, `order screen says "plate(d)": ${orderText.match(/.{0,30}\bplated?\b.{0,30}/i)[0]}`);
   // Each allocation's line names exactly its guests (with diets): "1 × Individually allocated for Dan (halal) and Ava (no dairy)".
-  const allocLines = orderText.split(/\r?\n/).filter((l) => / × Individually allocated for /.test(l));
+  // (lines starting "+1 Dish:" are the Adjustments for dietaries list, not the order rows)
+  const allocLines = orderText.split(/\r?\n/).filter((l) => !/^[+−=]\d* ?\S/.test(l.trim()) && / × Individually allocated for | to be shared by .* only$/.test(l));
   const unused = [...allocLines];
   for (const d of menu.filter((d) => d.source === "dedicated" && !d.toTable)) {
-    checks++;
-    const names = d.intendedFor.map(nm).sort().join();
-    const i = unused.findIndex((l) => l.startsWith(`${d.qty} × Individually allocated for `) && NAMES.filter((N) => hasName(l, N)).sort().join() === names);
-    if (i < 0) F(S, `order screen has no "${d.qty} × Individually allocated for" ${names}`);
-    else unused.splice(i, 1);
+    const n = d.intendedFor.length, each = n > 1 && d.qty % n === 0 ? d.qty / n : null;
+    const want = each
+      ? d.intendedFor.map((id) => ({ pre: `${each} × Individually allocated for `, names: nm(id) }))
+      : [{ pre: n > 1 ? `${d.qty} × ` : `${d.qty} × Individually allocated for `, shared: n > 1, names: d.intendedFor.map(nm).sort().join() }];
+    for (const w of want) {
+      checks++;
+      const i = unused.findIndex((l) => l.startsWith(w.pre) && (!w.shared || / to be shared by .* only$/.test(l)) && NAMES.filter((N) => hasName(l, N)).sort().join() === w.names);
+      if (i < 0) F(S, `order screen has no "${w.pre}…" for ${w.names}`);
+      else unused.splice(i, 1);
+    }
   }
   checks++; if (unused.length) F(S, `order screen has extra allocation lines: ${unused.join(" | ")}`);
   console.log("done", S);
